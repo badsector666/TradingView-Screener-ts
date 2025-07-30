@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2024-07-30 - Comprehensive Consistency & Syntax Fixes
+
+### Fixed
+- **Function Signatures**: Fixed all `setMarkets` method signatures to use consistent rest parameters (`...markets: string[]`)
+- **Package Naming**: Fixed all import statements to use correct package name `tradingview-screener-ts`
+- **Documentation Syntax**: Updated all examples to use correct rest parameter syntax instead of array syntax
+- **JSDoc Examples**: Fixed all inline documentation examples across the codebase
+- **Interface Consistency**: Aligned all interfaces with actual implementations
+
+### Improved
+- **Deep Consistency Check**: Performed comprehensive analysis of entire codebase for syntax consistency
+- **Professional Standards**: Ensured 100% consistency across all files, examples, and documentation
+- **Import Statements**: Standardized all import/export statements across the project
+
+### Technical
+- **Architecture Pattern**: Consistent use of `_markets` parameter for specialized builders that ignore input
+- **Type Safety**: Maintained full TypeScript compliance with consistent function signatures
+- **Code Quality**: All ESLint rules passing with professional coding standards
+
 ## [1.0.3] - 2024-07-30 - Code Quality & Documentation Updates
 
 ### Fixed

@@ -1,6 +1,6 @@
 {
   "name": "tradingview-screener-ts",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "TypeScript port of TradingView Screener with 100% Python parity - Based on the original Python library by shner-elmo (https://github.com/shner-elmo/TradingView-Screener)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
