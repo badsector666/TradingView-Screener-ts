@@ -1,0 +1,282 @@
+name: 🚀 CI/CD Pipeline - TradingView Screener TypeScript
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  NODE_VERSION_MATRIX: '[16, 18, 20, 21]'
+  CACHE_VERSION: v1
+
+jobs:
+  # 🔍 Code Quality & Security Analysis
+  quality-check:
+    name: 🔍 Quality & Security Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔍 ESLint analysis
+        run: npm run lint
+
+      - name: 🎨 Prettier check
+        run: npm run format:check
+
+      - name: 🔒 Security audit
+        run: npm audit --audit-level=moderate
+
+      - name: 📊 TypeScript compilation check
+        run: npm run type-check
+
+      - name: 🔍 CodeQL Analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: typescript
+
+      - name: 🔍 Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  # 🧪 Comprehensive Testing Matrix
+  test-matrix:
+    name: 🧪 Test Suite (Node ${{ matrix.node-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [16, 18, 20, 21]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - node-version: 20
+            os: ubuntu-latest
+            coverage: true
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Build project
+        run: npm run build
+
+      - name: 🧪 Run unit tests
+        run: npm test
+
+      - name: 🧪 Run integration tests
+        run: npm run test:integration
+
+      - name: 📊 Generate coverage report
+        if: matrix.coverage
+        run: npm run test:coverage
+
+      - name: 📤 Upload coverage to Codecov
+        if: matrix.coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: 🎯 Performance benchmarks
+        if: matrix.node-version == 20 && matrix.os == 'ubuntu-latest'
+        run: npm run benchmark
+
+  # 📦 Build & Package Verification
+  build-verification:
+    name: 📦 Build & Package Verification
+    runs-on: ubuntu-latest
+    needs: [quality-check, test-matrix]
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Build production bundle
+        run: npm run build:prod
+
+      - name: 📊 Bundle size analysis
+        run: npm run analyze:bundle
+
+      - name: 🔍 Package verification
+        run: |
+          npm pack --dry-run
+          npm run verify-package
+
+      - name: 📤 Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            *.tgz
+          retention-days: 7
+
+  # 🌍 Cross-Platform Compatibility
+  compatibility-test:
+    name: 🌍 Cross-Platform Compatibility
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [18, 20]
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🧪 Run compatibility tests
+        run: npm run test:compatibility
+
+      - name: 🔍 Verify Python parity
+        run: npm run verify-parity
+
+  # 📚 Documentation Generation
+  documentation:
+    name: 📚 Documentation Generation
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: [quality-check, test-matrix]
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 📚 Generate TypeDoc documentation
+        run: npm run docs
+
+      - name: 🚀 Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+
+  # 🚀 Automated Release & Publishing
+  release:
+    name: 🚀 Release & Publish
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+    needs: [quality-check, test-matrix, build-verification, compatibility-test]
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Build production package
+        run: npm run build:prod
+
+      - name: 🧪 Final verification tests
+        run: npm run test:final
+
+      - name: 📤 Publish to NPM
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: 🏷️ Create GitHub release assets
+        run: |
+          npm pack
+          gh release upload ${{ github.event.release.tag_name }} *.tgz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📢 Notify success
+        run: |
+          echo "🎉 Successfully published tradingview-screener-ts@${{ github.event.release.tag_name }}"
+          echo "📦 NPM: https://www.npmjs.com/package/tradingview-screener-ts"
+          echo "📚 Docs: https://your-username.github.io/TradingView-Screener-TypeScript"
+
+  # 🔄 Dependency Updates
+  dependency-update:
+    name: 🔄 Dependency Update Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 🔍 Check for outdated dependencies
+        run: npm outdated || true
+
+      - name: 🔒 Security audit
+        run: npm audit --audit-level=moderate
+
+      - name: 📊 Generate dependency report
+        run: |
+          npm list --depth=0 > dependency-report.txt
+          npm audit --json > security-report.json || true
+
+      - name: 📤 Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-reports
+          path: |
+            dependency-report.txt
+            security-report.json
+
+# 📅 Scheduled workflows
+on:
+  schedule:
+    # Run dependency checks weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'

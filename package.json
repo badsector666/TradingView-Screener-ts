@@ -1,0 +1,151 @@
+{
+  "name": "tradingview-screener-ts",
+  "version": "1.0.2",
+  "description": "TypeScript port of TradingView Screener with 100% Python parity - Based on the original Python library by shner-elmo (https://github.com/shner-elmo/TradingView-Screener)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "build:prod": "npm run clean && tsc --project tsconfig.prod.json && npm run optimize",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --coverageReporters=text-lcov --coverageReporters=html",
+    "test:integration": "jest --testMatch='**/integration/**/*.test.ts'",
+    "test:compatibility": "jest --testMatch='**/compatibility/**/*.test.ts'",
+    "test:final": "npm run test && npm run test:integration && npm run verify-parity",
+    "lint": "eslint src/**/*.ts --max-warnings 0",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write 'src/**/*.ts' '*.md'",
+    "format:check": "prettier --check 'src/**/*.ts' '*.md'",
+    "type-check": "tsc --noEmit",
+    "docs": "typedoc --out docs src/index.ts",
+    "docs:serve": "typedoc --watch --out docs src/index.ts",
+    "docs:json": "typedoc --json docs/api.json src/index.ts",
+    "clean": "rimraf dist coverage docs && del /q *.tgz 2>nul || true",
+    "dev": "ts-node src/index.ts",
+    "verify-parity": "ts-node verify-python-parity.ts",
+    "verify-package": "npm pack --dry-run && publint",
+    "benchmark": "ts-node benchmarks/performance.ts",
+    "analyze:bundle": "npm run build:prod && bundlesize",
+    "analyze:deps": "depcheck && npm audit",
+    "optimize": "terser dist/index.js -o dist/index.min.js --compress --mangle",
+    "security:audit": "npm audit --audit-level=moderate",
+    "security:check": "ts-node src/security.ts --audit",
+    "prepublishOnly-disabled": "npm run clean && npm run build:prod && npm run test:final && npm run security:audit",
+    "postinstall": "node -e \"console.log('📦 tradingview-screener-ts installed successfully!')\"",
+    "preversion": "npm run test:final",
+    "version": "npm run build:prod && git add -A dist",
+    "postversion": "git push && git push --tags"
+  },
+  "keywords": [
+    "tradingview",
+    "screener",
+    "stocks",
+    "trading",
+    "finance",
+    "api",
+    "typescript",
+    "scanner",
+    "market-data",
+    "financial-data",
+    "python-port",
+    "python-compatible",
+    "stock-screener",
+    "market-analysis",
+    "shner-elmo",
+    "tradingview-screener-python"
+  ],
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YOUR_USERNAME/TradingView-Screener-TypeScript.git"
+  },
+  "bugs": {
+    "url": "https://github.com/YOUR_USERNAME/TradingView-Screener-TypeScript/issues"
+  },
+  "homepage": "https://github.com/YOUR_USERNAME/TradingView-Screener-TypeScript#readme",
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE",
+    "MIGRATION.md",
+    "CREDITS.md"
+  ],
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.8",
+    "@types/node": "^20.9.0",
+    "@typescript-eslint/eslint-plugin": "^6.12.0",
+    "@typescript-eslint/parser": "^6.12.0",
+    "bundlesize": "^0.18.1",
+    "depcheck": "^1.4.7",
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "eslint-plugin-security": "^1.7.1",
+    "eslint-plugin-import": "^2.29.0",
+    "husky": "^8.0.3",
+    "jest": "^29.7.0",
+    "jest-environment-node": "^29.7.0",
+    "lint-staged": "^15.1.0",
+    "prettier": "^3.1.0",
+    "publint": "^0.2.5",
+    "rimraf": "^5.0.5",
+    "terser": "^5.24.0",
+    "ts-jest": "^29.1.1",
+    "ts-node": "^10.9.1",
+    "typedoc": "^0.25.4",
+    "typedoc-plugin-markdown": "^3.17.1",
+    "typescript": "^5.2.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "bundlesize": [
+    {
+      "path": "./dist/index.js",
+      "maxSize": "50KB"
+    },
+    {
+      "path": "./dist/index.min.js",
+      "maxSize": "25KB"
+    }
+  ],
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{md,json}": [
+      "prettier --write"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "npm run test && npm run type-check",
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+    }
+  },
+
+  "typedoc": {
+    "entryPoint": "./src/index.ts",
+    "out": "./docs",
+    "theme": "default",
+    "includeVersion": true,
+    "excludePrivate": true,
+    "excludeProtected": true,
+    "excludeExternals": true,
+    "readme": "./README.md",
+    "name": "TradingView Screener TypeScript",
+    "tsconfig": "./tsconfig.json"
+  }
+}
