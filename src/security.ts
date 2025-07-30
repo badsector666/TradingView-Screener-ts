@@ -1,6 +1,6 @@
 /**
  * Advanced security utilities and validation
- * 
+ *
  * This module provides enterprise-grade security features including
  * input validation, sanitization, and secure request handling.
  */
@@ -18,13 +18,51 @@ export class InputValidator {
     }
 
     const validMarkets = [
-      'america', 'canada', 'brazil', 'mexico', 'uk', 'germany', 'france',
-      'italy', 'spain', 'netherlands', 'switzerland', 'sweden', 'norway',
-      'finland', 'denmark', 'belgium', 'austria', 'poland', 'portugal',
-      'greece', 'hungary', 'czech', 'russia', 'turkey', 'israel', 'japan',
-      'china', 'hongkong', 'india', 'singapore', 'korea', 'taiwan',
-      'australia', 'newzealand', 'southafrica', 'egypt', 'nigeria',
-      'crypto', 'forex', 'coin', 'cfd', 'futures', 'bonds', 'economy', 'options'
+      'america',
+      'canada',
+      'brazil',
+      'mexico',
+      'uk',
+      'germany',
+      'france',
+      'italy',
+      'spain',
+      'netherlands',
+      'switzerland',
+      'sweden',
+      'norway',
+      'finland',
+      'denmark',
+      'belgium',
+      'austria',
+      'poland',
+      'portugal',
+      'greece',
+      'hungary',
+      'czech',
+      'russia',
+      'turkey',
+      'israel',
+      'japan',
+      'china',
+      'hongkong',
+      'india',
+      'singapore',
+      'korea',
+      'taiwan',
+      'australia',
+      'newzealand',
+      'southafrica',
+      'egypt',
+      'nigeria',
+      'crypto',
+      'forex',
+      'coin',
+      'cfd',
+      'futures',
+      'bonds',
+      'economy',
+      'options',
     ];
 
     const sanitized = markets
@@ -43,7 +81,7 @@ export class InputValidator {
       throw new Error('Columns must be an array');
     }
 
-    const columnPattern = /^[a-zA-Z0-9_.\-\/]+$/;
+    const columnPattern = /^[a-zA-Z0-9_.\-/]+$/;
     const maxLength = 100;
 
     return columns
@@ -52,7 +90,7 @@ export class InputValidator {
       .filter(col => {
         if (col.length === 0 || col.length > maxLength) return false;
         if (!columnPattern.test(col)) return false;
-        
+
         // Block potential SQL injection patterns
         const dangerousPatterns = [
           /union\s+select/i,
@@ -64,7 +102,7 @@ export class InputValidator {
           /script\s*>/i,
           /<\s*script/i,
         ];
-        
+
         return !dangerousPatterns.some(pattern => pattern.test(col));
       });
   }
@@ -74,19 +112,19 @@ export class InputValidator {
    */
   public static validateNumber(value: any, min?: number, max?: number): number {
     const num = Number(value);
-    
+
     if (!Number.isFinite(num)) {
       throw new Error(`Invalid number: ${value}`);
     }
-    
+
     if (min !== undefined && num < min) {
       throw new Error(`Number ${num} is below minimum ${min}`);
     }
-    
+
     if (max !== undefined && num > max) {
       throw new Error(`Number ${num} is above maximum ${max}`);
     }
-    
+
     return num;
   }
 
@@ -95,11 +133,28 @@ export class InputValidator {
    */
   public static validateFilterOperation(operation: string): string {
     const validOperations = [
-      'greater', 'egreater', 'less', 'eless', 'equal', 'nequal',
-      'in_range', 'not_in_range', 'match', 'nmatch', 'in_day_range',
-      'in_week_range', 'in_month_range', 'crosses', 'crosses_above',
-      'crosses_below', 'above_pct', 'below_pct', 'between_pct',
-      'not_between_pct', 'empty', 'nempty'
+      'greater',
+      'egreater',
+      'less',
+      'eless',
+      'equal',
+      'nequal',
+      'in_range',
+      'not_in_range',
+      'match',
+      'nmatch',
+      'in_day_range',
+      'in_week_range',
+      'in_month_range',
+      'crosses',
+      'crosses_above',
+      'crosses_below',
+      'above_pct',
+      'below_pct',
+      'between_pct',
+      'not_between_pct',
+      'empty',
+      'nempty',
     ];
 
     if (typeof operation !== 'string') {
@@ -107,7 +162,7 @@ export class InputValidator {
     }
 
     const sanitized = operation.toLowerCase().trim();
-    
+
     if (!validOperations.includes(sanitized)) {
       throw new Error(`Invalid operation: ${operation}`);
     }
@@ -121,23 +176,23 @@ export class InputValidator {
   public static validateUrl(url: string): string {
     try {
       const parsed = new URL(url);
-      
+
       // Only allow HTTPS for security
       if (parsed.protocol !== 'https:') {
         throw new Error('Only HTTPS URLs are allowed');
       }
-      
+
       // Whitelist allowed domains
       const allowedDomains = [
         'scanner.tradingview.com',
         'symbol-search.tradingview.com',
-        'pine-facade.tradingview.com'
+        'pine-facade.tradingview.com',
       ];
-      
+
       if (!allowedDomains.includes(parsed.hostname)) {
         throw new Error(`Domain not allowed: ${parsed.hostname}`);
       }
-      
+
       return url;
     } catch (error) {
       throw new Error(`Invalid URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -155,20 +210,27 @@ export class RequestSanitizer {
   public static sanitizeHeaders(headers: Record<string, string>): Record<string, string> {
     const sanitized: Record<string, string> = {};
     const allowedHeaders = [
-      'user-agent', 'accept', 'accept-language', 'accept-encoding',
-      'content-type', 'authorization', 'cookie', 'referer', 'origin'
+      'user-agent',
+      'accept',
+      'accept-language',
+      'accept-encoding',
+      'content-type',
+      'authorization',
+      'cookie',
+      'referer',
+      'origin',
     ];
 
     for (const [key, value] of Object.entries(headers)) {
       const normalizedKey = key.toLowerCase().trim();
-      
+
       if (allowedHeaders.includes(normalizedKey)) {
         // Sanitize header value
         const sanitizedValue = String(value)
           .replace(/[\r\n]/g, '') // Remove CRLF injection
           .trim()
           .slice(0, 1000); // Limit length
-        
+
         if (sanitizedValue.length > 0) {
           sanitized[normalizedKey] = sanitizedValue;
         }
@@ -188,8 +250,8 @@ export class RequestSanitizer {
 
     // Remove potentially dangerous characters
     return cookies
-      .replace(/[<>\"']/g, '') // Remove HTML/JS injection chars
-      .replace(/[\r\n]/g, '')  // Remove CRLF injection
+      .replace(/[<>"']/g, '') // Remove HTML/JS injection chars
+      .replace(/[\r\n]/g, '') // Remove CRLF injection
       .trim()
       .slice(0, 4096); // Limit cookie length
   }
@@ -204,10 +266,10 @@ export class RequestSanitizer {
       validateStatus: (status: number) => status >= 200 && status < 300,
       headers: {
         'User-Agent': 'tradingview-screener-ts/1.0.0',
-        'Accept': 'application/json',
+        Accept: 'application/json',
         'Accept-Language': 'en-US,en;q=0.9',
         'Accept-Encoding': 'gzip, deflate, br',
-        'DNT': '1',
+        DNT: '1',
         'Sec-Fetch-Dest': 'empty',
         'Sec-Fetch-Mode': 'cors',
         'Sec-Fetch-Site': 'cross-site',
@@ -216,8 +278,8 @@ export class RequestSanitizer {
       ...(config.cookies && {
         headers: {
           ...this.sanitizeHeaders(config.headers || {}),
-          'Cookie': this.sanitizeCookies(config.cookies),
-        }
+          Cookie: this.sanitizeCookies(config.cookies),
+        },
       }),
     };
   }
@@ -237,37 +299,37 @@ export class ErrorSanitizer {
 
     // Remove sensitive information from error messages
     let message = error.message;
-    
+
     // Remove file paths
     message = message.replace(/\/[^\s]+/g, '[PATH]');
     message = message.replace(/[A-Z]:\\[^\s]+/g, '[PATH]');
-    
+
     // Remove IP addresses
     message = message.replace(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g, '[IP]');
-    
+
     // Remove potential API keys or tokens
     message = message.replace(/[a-zA-Z0-9]{20,}/g, '[TOKEN]');
-    
+
     // Remove SQL-like patterns
     message = message.replace(/SELECT\s+.*FROM\s+/gi, '[SQL_QUERY]');
-    
+
     // Generic error for network issues
     if (message.includes('ENOTFOUND') || message.includes('ECONNREFUSED')) {
       message = 'Network connection failed';
     }
-    
+
     if (message.includes('timeout')) {
       message = 'Request timeout';
     }
-    
+
     if (message.includes('401') || message.includes('403')) {
       message = 'Authentication required';
     }
-    
+
     if (message.includes('429')) {
       message = 'Rate limit exceeded';
     }
-    
+
     if (message.includes('500') || message.includes('502') || message.includes('503')) {
       message = 'Server error';
     }
@@ -285,7 +347,7 @@ export class ErrorSanitizer {
     timestamp: string;
   } {
     const sanitized = this.sanitizeError(error);
-    
+
     return {
       success: false,
       error: sanitized.message,
@@ -301,12 +363,12 @@ export class ErrorSanitizer {
     if (error?.response?.status) {
       return `HTTP_${error.response.status}`;
     }
-    
+
     if (error?.code) {
       const safeCodes = ['ENOTFOUND', 'ECONNREFUSED', 'TIMEOUT', 'ABORT'];
       return safeCodes.includes(error.code) ? error.code : 'UNKNOWN';
     }
-    
+
     return 'UNKNOWN';
   }
 }
@@ -344,7 +406,7 @@ export class SecurityAuditor {
       const suspiciousColumns = query.columns.filter((col: string) =>
         suspiciousPatterns.some(pattern => pattern.test(col))
       );
-      
+
       if (suspiciousColumns.length > 0) {
         warnings.push(`Suspicious column names detected: ${suspiciousColumns.join(', ')}`);
         recommendations.push('Review column names for potential security issues');
@@ -402,7 +464,7 @@ export class CryptoUtils {
   public static generateSecureId(length: number = 16): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
-    
+
     if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
       // Browser environment
       const array = new Uint8Array(length);
@@ -430,7 +492,7 @@ export class CryptoUtils {
         result += chars[Math.floor(Math.random() * chars.length)];
       }
     }
-    
+
     return result;
   }
 
@@ -441,7 +503,7 @@ export class CryptoUtils {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
     return Math.abs(hash).toString(36);

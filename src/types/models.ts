@@ -109,9 +109,7 @@ export type ScreenerPreset = 'index_components_market_pages' | 'pre-market-gaine
 /**
  * Price conversion configuration
  */
-export type PriceConversion =
-  | { to_symbol: boolean }
-  | { to_currency: string }; // currency should be in lower-case
+export type PriceConversion = { to_symbol: boolean } | { to_currency: string }; // currency should be in lower-case
 
 /**
  * Complete query structure for the TradingView API

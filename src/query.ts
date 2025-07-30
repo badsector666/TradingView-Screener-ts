@@ -6,7 +6,6 @@ import {
   ScreenerDict,
   FilterOperationDict,
   OperationDict,
-  OperationComparisonDict,
   ExpressionDict,
   LogicalOperator,
   RequestConfig,
@@ -58,7 +57,7 @@ function implAndOrChaining(
   // to know if it's an instance of `FilterOperationDict` we simply check if it has the `left` key,
   // which no other interface has.
   const operands: Array<OperationDict | ExpressionDict> = [];
-  
+
   for (const expr of expressions) {
     if ('left' in expr) {
       // if it's a FilterOperationDict
@@ -67,7 +66,7 @@ function implAndOrChaining(
       operands.push(expr);
     }
   }
-  
+
   return { operation: { operator, operands } };
 }
 
@@ -98,8 +97,8 @@ export function Or(...expressions: Array<FilterOperationDict | OperationDict>): 
  * @example
  * To perform a simple query all you have to do is:
  * ```typescript
- * import { Query } from 'tradingview-screener';
- * 
+ * import { Query } from 'tradingview-screener-ts';
+ *
  * const result = await new Query().getScannerData();
  * console.log(result);
  * // {
@@ -117,7 +116,7 @@ export function Or(...expressions: Array<FilterOperationDict | OperationDict>): 
  *
  * By default, the `Query` will select the columns: `name`, `close`, `volume`, `market_cap_basic`,
  * but you can override that:
- * 
+ *
  * @example
  * ```typescript
  * const result = await new Query()
@@ -129,11 +128,11 @@ export function Or(...expressions: Array<FilterOperationDict | OperationDict>): 
  *
  * Now let's do some queries using the `WHERE` statement, select all the stocks that the `close` is
  * bigger or equal than 350:
- * 
+ *
  * @example
  * ```typescript
- * import { Query, Column } from 'tradingview-screener';
- * 
+ * import { Query, Column } from 'tradingview-screener-ts';
+ *
  * const result = await new Query()
  *   .select('close', 'volume', '52 Week High')
  *   .where(new Column('close').gte(350))
@@ -141,7 +140,7 @@ export function Or(...expressions: Array<FilterOperationDict | OperationDict>): 
  * ```
  *
  * You can even use other columns in these kind of operations:
- * 
+ *
  * @example
  * ```typescript
  * const result = await new Query()
@@ -175,9 +174,7 @@ export class Query {
    * @returns This Query instance for method chaining
    */
   public select(...columns: Array<Column | string>): this {
-    this.query.columns = columns.map(col => 
-      col instanceof Column ? col.name : col
-    );
+    this.query.columns = columns.map(col => (col instanceof Column ? col.name : col));
     return this;
   }
 
@@ -206,7 +203,7 @@ export class Query {
    * @example
    * Combining conditions with `OR` and nested `AND`:
    * ```typescript
-   * import { Query, And, Or, col } from 'tradingview-screener';
+   * import { Query, And, Or, col } from 'tradingview-screener-ts';
    *
    * const result = await new Query()
    *   .select('type', 'typespecs')
@@ -501,9 +498,6 @@ export class Query {
    * @returns True if queries are equal
    */
   public equals(other: Query): boolean {
-    return (
-      JSON.stringify(this.query) === JSON.stringify(other.query) &&
-      this.url === other.url
-    );
+    return JSON.stringify(this.query) === JSON.stringify(other.query) && this.url === other.url;
   }
 }

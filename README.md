@@ -10,7 +10,7 @@
 
 **A complete TypeScript port of the popular Python TradingView Screener library**
 
-*100% feature parity • Enhanced type safety • Modern JavaScript features*
+_100% feature parity • Enhanced type safety • Modern JavaScript features_
 
 [📚 Documentation](#-documentation) • [🚀 Quick Start](#-quick-start) • [🌍 Markets](#-markets) • [💡 Examples](#-examples) • [🔗 API Reference](#-api-reference)
 
@@ -59,7 +59,7 @@ const result = await new Query()
   .select('name', 'close', 'volume', 'market_cap_basic')
   .where(
     col('market_cap_basic').gt(1_000_000_000), // Market cap > $1B
-    col('volume').gt(1_000_000)                // Volume > 1M
+    col('volume').gt(1_000_000) // Volume > 1M
   )
   .orderBy('volume', false)
   .limit(50)
@@ -76,12 +76,12 @@ result.data.forEach(stock => {
 ```typescript
 // Screen Indian large-cap stocks
 const indiaStocks = await new Query()
-  .setMarkets(['india'])
+  .setMarkets('india')
   .select('name', 'close', 'volume', 'market_cap_basic', 'P/E')
   .where(
     col('market_cap_basic').gt(10_000_000_000), // Market cap > ₹10B
-    col('P/E').between(8, 35),                  // P/E ratio 8-35
-    col('volume').gt(100_000)                   // Volume > 100K
+    col('P/E').between(8, 35), // P/E ratio 8-35
+    col('volume').gt(100_000) // Volume > 100K
   )
   .orderBy('market_cap_basic', false)
   .getScannerData();
@@ -96,6 +96,7 @@ console.log(`Found ${indiaStocks.totalCount} Indian stocks`);
 ### Supported Markets (67+ total)
 
 #### **Major Stock Markets**
+
 - 🇺🇸 **United States** (`america`) - NYSE, NASDAQ, AMEX
 - 🇮🇳 **India** (`india`) - NSE, BSE with INR currency support
 - 🇬🇧 **United Kingdom** (`uk`) - LSE
@@ -103,6 +104,7 @@ console.log(`Found ${indiaStocks.totalCount} Indian stocks`);
 - 🇯🇵 **Japan** (`japan`) - TSE, Nikkei
 
 #### **Asset Classes**
+
 - 💰 **Cryptocurrency** (`crypto`) - Bitcoin, Ethereum, Altcoins
 - 💱 **Forex** (`forex`) - Currency pairs
 - 📈 **Futures** (`futures`) - Commodity and financial futures
@@ -133,19 +135,19 @@ console.log(`Found ${indiaStocks.totalCount} Indian stocks`);
 
 ```typescript
 // Price & Volume
-'close', 'open', 'high', 'low', 'volume'
+('close', 'open', 'high', 'low', 'volume');
 
 // Market Data
-'market_cap_basic', 'shares_outstanding', 'float_shares_outstanding'
+('market_cap_basic', 'shares_outstanding', 'float_shares_outstanding');
 
 // Valuation Ratios
-'P/E', 'P/B', 'P/S', 'EV/EBITDA', 'price_earnings_ttm'
+('P/E', 'P/B', 'P/S', 'EV/EBITDA', 'price_earnings_ttm');
 
 // Technical Indicators
-'RSI', 'MACD.macd', 'MACD.signal', 'EMA20', 'SMA50', 'SMA200'
+('RSI', 'MACD.macd', 'MACD.signal', 'EMA20', 'SMA50', 'SMA200');
 
 // Financial Metrics
-'debt_to_equity', 'return_on_equity', 'return_on_assets', 'gross_margin'
+('debt_to_equity', 'return_on_equity', 'return_on_assets', 'gross_margin');
 ```
 
 ---
@@ -161,12 +163,12 @@ const technicalScreen = await new Query()
   .select('name', 'close', 'RSI', 'MACD.macd', 'MACD.signal', 'volume')
   .where(
     And(
-      col('RSI').between(30, 70),                    // Not oversold/overbought
-      col('MACD.macd').gt(col('MACD.signal')),      // MACD bullish crossover
-      col('close').gt(col('EMA20')),                // Above 20-day EMA
+      col('RSI').between(30, 70), // Not oversold/overbought
+      col('MACD.macd').gt(col('MACD.signal')), // MACD bullish crossover
+      col('close').gt(col('EMA20')), // Above 20-day EMA
       Or(
-        col('volume').gt(col('volume').sma(20)),    // Above average volume
-        col('relative_volume_10d_calc').gt(1.5)     // High relative volume
+        col('volume').gt(col('volume').sma(20)), // Above average volume
+        col('relative_volume_10d_calc').gt(1.5) // High relative volume
       )
     )
   )
@@ -179,12 +181,12 @@ const technicalScreen = await new Query()
 ```typescript
 // Screen across multiple markets
 const globalScreen = await new Query()
-  .setMarkets(['america', 'india', 'uk', 'germany', 'japan'])
+  .setMarkets('america', 'india', 'uk', 'germany', 'japan')
   .select('name', 'close', 'market_cap_basic', 'country', 'sector')
   .where(
-    col('market_cap_basic').gt(5_000_000_000),     // $5B+ market cap
-    col('P/E').between(5, 25),                     // Reasonable P/E
-    col('debt_to_equity').lt(1)                    // Low debt
+    col('market_cap_basic').gt(5_000_000_000), // $5B+ market cap
+    col('P/E').between(5, 25), // Reasonable P/E
+    col('debt_to_equity').lt(1) // Low debt
   )
   .orderBy('market_cap_basic', false)
   .getScannerData();
@@ -198,9 +200,9 @@ const cryptoScreen = await new Query()
   .setMarkets(['crypto'])
   .select('name', 'close', 'volume', 'market_cap_calc', 'change')
   .where(
-    col('market_cap_calc').gt(1_000_000_000),      // $1B+ market cap
-    col('volume').gt(10_000_000),                  // $10M+ daily volume
-    col('change').between(-20, 20)                 // ±20% daily change
+    col('market_cap_calc').gt(1_000_000_000), // $1B+ market cap
+    col('volume').gt(10_000_000), // $10M+ daily volume
+    col('change').between(-20, 20) // ±20% daily change
   )
   .orderBy('volume', false)
   .getScannerData();
@@ -250,15 +252,16 @@ const cryptoScreen = await new Query()
 
 ### Python vs TypeScript
 
-| Python | TypeScript | Notes |
-|--------|------------|-------|
-| `Column('field') > 100` | `col('field').gt(100)` | Method-based operators |
-| `query.get_scanner_data()` | `query.getScannerData()` | camelCase naming |
-| `from tradingview_screener import *` | `import { Query, col } from 'tradingview-screener-ts'` | ES6 imports |
+| Python                               | TypeScript                                             | Notes                  |
+| ------------------------------------ | ------------------------------------------------------ | ---------------------- |
+| `Column('field') > 100`              | `col('field').gt(100)`                                 | Method-based operators |
+| `query.get_scanner_data()`           | `query.getScannerData()`                               | camelCase naming       |
+| `from tradingview_screener import *` | `import { Query, col } from 'tradingview-screener-ts'` | ES6 imports            |
 
 ### Example Migration
 
 **Python:**
+
 ```python
 from tradingview_screener import Query, Column
 
@@ -269,6 +272,7 @@ result = (Query()
 ```
 
 **TypeScript:**
+
 ```typescript
 import { Query, col } from 'tradingview-screener-ts';
 
@@ -300,6 +304,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Made with ❤️ for the TypeScript community**
 
-[⭐ Star on GitHub](https://github.com/YOUR_USERNAME/TradingView-Screener-TypeScript) • [📦 NPM Package](https://www.npmjs.com/package/tradingview-screener-ts) • [🐛 Report Issues](https://github.com/YOUR_USERNAME/TradingView-Screener-TypeScript/issues)
+[⭐ Star on GitHub](https://github.com/Anny26022/TradingView-Screener-ts) • [📦 NPM Package](https://www.npmjs.com/package/tradingview-screener-ts) • [🐛 Report Issues](https://github.com/Anny26022/TradingView-Screener-ts/issues)
 
 </div>

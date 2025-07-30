@@ -1,6 +1,6 @@
 /**
  * Advanced architecture patterns and design implementations
- * 
+ *
  * This module implements enterprise-grade architectural patterns including
  * Factory, Strategy, Observer, Decorator, and Plugin patterns for maximum
  * extensibility and maintainability.
@@ -15,7 +15,9 @@ export abstract class QueryFactory {
   /**
    * Create a query for specific market type
    */
-  public static createMarketQuery(marketType: 'stock' | 'crypto' | 'forex' | 'india'): IQueryBuilder {
+  public static createMarketQuery(
+    marketType: 'stock' | 'crypto' | 'forex' | 'india'
+  ): IQueryBuilder {
     switch (marketType) {
       case 'stock':
         return new StockQueryBuilder();
@@ -49,7 +51,7 @@ export interface IQueryBuilder {
   setColumns(columns: string[]): IQueryBuilder;
   setFilters(filters: FilterOperationDict[]): IQueryBuilder;
   setLimit(limit: number): IQueryBuilder;
-  setMarkets(markets: string[]): IQueryBuilder;
+  setMarkets(...markets: string[]): IQueryBuilder;
   build(): QueryDict;
 }
 
@@ -60,9 +62,8 @@ export class StockQueryBuilder implements IQueryBuilder {
   private query: Partial<QueryDict> = {};
 
   public setColumns(columns: string[]): IQueryBuilder {
-    this.query.columns = columns.length > 0 ? columns : [
-      'name', 'close', 'volume', 'market_cap_basic', 'P/E', 'P/B'
-    ];
+    this.query.columns =
+      columns.length > 0 ? columns : ['name', 'close', 'volume', 'market_cap_basic', 'P/E', 'P/B'];
     return this;
   }
 
@@ -76,7 +77,7 @@ export class StockQueryBuilder implements IQueryBuilder {
     return this;
   }
 
-  public setMarkets(markets: string[]): IQueryBuilder {
+  public setMarkets(...markets: string[]): IQueryBuilder {
     this.query.markets = markets.length > 0 ? markets : ['america'];
     return this;
   }
@@ -98,9 +99,10 @@ export class CryptoQueryBuilder implements IQueryBuilder {
   private query: Partial<QueryDict> = {};
 
   public setColumns(columns: string[]): IQueryBuilder {
-    this.query.columns = columns.length > 0 ? columns : [
-      'name', 'close', 'volume', 'market_cap_calc', 'change', 'change_7d'
-    ];
+    this.query.columns =
+      columns.length > 0
+        ? columns
+        : ['name', 'close', 'volume', 'market_cap_calc', 'change', 'change_7d'];
     return this;
   }
 
@@ -114,7 +116,7 @@ export class CryptoQueryBuilder implements IQueryBuilder {
     return this;
   }
 
-  public setMarkets(markets: string[]): IQueryBuilder {
+  public setMarkets(..._markets: string[]): IQueryBuilder {
     this.query.markets = ['crypto'];
     return this;
   }
@@ -136,9 +138,8 @@ export class ForexQueryBuilder implements IQueryBuilder {
   private query: Partial<QueryDict> = {};
 
   public setColumns(columns: string[]): IQueryBuilder {
-    this.query.columns = columns.length > 0 ? columns : [
-      'name', 'close', 'change', 'volatility', 'high', 'low'
-    ];
+    this.query.columns =
+      columns.length > 0 ? columns : ['name', 'close', 'change', 'volatility', 'high', 'low'];
     return this;
   }
 
@@ -152,7 +153,7 @@ export class ForexQueryBuilder implements IQueryBuilder {
     return this;
   }
 
-  public setMarkets(markets: string[]): IQueryBuilder {
+  public setMarkets(..._markets: string[]): IQueryBuilder {
     this.query.markets = ['forex'];
     return this;
   }
@@ -174,9 +175,10 @@ export class IndiaStockQueryBuilder implements IQueryBuilder {
   private query: Partial<QueryDict> = {};
 
   public setColumns(columns: string[]): IQueryBuilder {
-    this.query.columns = columns.length > 0 ? columns : [
-      'name', 'close', 'volume', 'market_cap_basic', 'P/E', 'debt_to_equity'
-    ];
+    this.query.columns =
+      columns.length > 0
+        ? columns
+        : ['name', 'close', 'volume', 'market_cap_basic', 'P/E', 'debt_to_equity'];
     return this;
   }
 
@@ -190,7 +192,7 @@ export class IndiaStockQueryBuilder implements IQueryBuilder {
     return this;
   }
 
-  public setMarkets(markets: string[]): IQueryBuilder {
+  public setMarkets(..._markets: string[]): IQueryBuilder {
     this.query.markets = ['india'];
     return this;
   }
@@ -397,7 +399,7 @@ export class PerformanceObserver implements IQueryObserver {
     });
   }
 
-  public onQueryComplete(query: QueryDict, result: ScreenerDataResult): void {
+  public onQueryComplete(query: QueryDict, _result: ScreenerDataResult): void {
     const metric = this.metrics.find(m => m.query === query && !m.endTime);
     if (metric) {
       metric.endTime = performance.now();
@@ -423,7 +425,7 @@ export class PerformanceObserver implements IQueryObserver {
   public getAverageQueryTime(): number {
     const completedQueries = this.metrics.filter(m => m.duration);
     if (completedQueries.length === 0) return 0;
-    
+
     const totalTime = completedQueries.reduce((sum, m) => sum + (m.duration || 0), 0);
     return totalTime / completedQueries.length;
   }
@@ -449,7 +451,7 @@ export class PluginManager {
     if (this.plugins.has(plugin.name)) {
       throw new Error(`Plugin ${plugin.name} is already registered`);
     }
-    
+
     this.plugins.set(plugin.name, plugin);
     plugin.initialize();
   }

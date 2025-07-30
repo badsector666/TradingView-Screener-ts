@@ -9,10 +9,10 @@ export type TechnicalRating = 'Strong Buy' | 'Buy' | 'Neutral' | 'Sell' | 'Stron
 
 /**
  * Formats a numeric technical rating into a human-readable string
- * 
+ *
  * @param rating - Numeric rating value
  * @returns Human-readable technical rating
- * 
+ *
  * @example
  * ```typescript
  * formatTechnicalRating(0.7)   // 'Strong Buy'
@@ -21,7 +21,7 @@ export type TechnicalRating = 'Strong Buy' | 'Buy' | 'Neutral' | 'Sell' | 'Stron
  * formatTechnicalRating(-0.2)  // 'Sell'
  * formatTechnicalRating(-0.7)  // 'Strong Sell'
  * ```
- * 
+ *
  * @see https://github.com/shner-elmo/TradingView-Screener/issues/12
  */
 export function formatTechnicalRating(rating: number): TechnicalRating {

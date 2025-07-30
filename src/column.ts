@@ -292,11 +292,7 @@ export class Column {
    * new Column('close').betweenPct('EMA200', 1.2, 1.5)
    * ```
    */
-  public betweenPct(
-    column: Column | string,
-    pct1: number,
-    pct2?: number
-  ): FilterOperationDict {
+  public betweenPct(column: Column | string, pct1: number, pct2?: number): FilterOperationDict {
     return {
       left: this.name,
       operation: 'in_range%',
@@ -316,11 +312,7 @@ export class Column {
    * new Column('close').notBetweenPct('EMA200', 1.2, 1.5)
    * ```
    */
-  public notBetweenPct(
-    column: Column | string,
-    pct1: number,
-    pct2?: number
-  ): FilterOperationDict {
+  public notBetweenPct(column: Column | string, pct1: number, pct2?: number): FilterOperationDict {
     return {
       left: this.name,
       operation: 'not_in_range%',

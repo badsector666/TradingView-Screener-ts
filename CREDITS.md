@@ -36,7 +36,7 @@ If you find this TypeScript port useful, please consider:
 
 1. ⭐ Starring both repositories:
    - Original Python: https://github.com/shner-elmo/TradingView-Screener
-   - TypeScript Port: https://github.com/YOUR_USERNAME/TradingView-Screener-TypeScript
+   - TypeScript Port: https://github.com/Anny26022/TradingView-Screener-ts
 
 2. 🐛 Reporting issues or contributing improvements to maintain parity
 

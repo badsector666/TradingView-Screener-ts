@@ -1,6 +1,6 @@
 /**
  * Performance monitoring and optimization utilities
- * 
+ *
  * This module provides advanced performance monitoring, caching, and optimization
  * features to achieve world-class performance standards.
  */
@@ -242,14 +242,14 @@ export class RateLimiter {
    */
   public isAllowed(): boolean {
     const now = Date.now();
-    
+
     // Remove old requests outside time window
     this.requests = this.requests.filter(time => now - time < this.timeWindow);
-    
+
     if (this.requests.length >= this.maxRequests) {
       return false;
     }
-    
+
     this.requests.push(now);
     return true;
   }
@@ -273,11 +273,11 @@ export class RateLimiter {
   } {
     const now = Date.now();
     this.requests = this.requests.filter(time => now - time < this.timeWindow);
-    
+
     const remaining = Math.max(0, this.maxRequests - this.requests.length);
     const oldestRequest = this.requests[0];
     const resetTime = oldestRequest ? oldestRequest + this.timeWindow : now;
-    
+
     return {
       remaining,
       resetTime,

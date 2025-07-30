@@ -33,7 +33,7 @@
  * import { Query, col } from 'tradingview-screener-ts';
  *
  * const indiaStocks = await new Query()
- *   .setMarkets(['india'])
+ *   .setMarkets('india')
  *   .select('name', 'close', 'volume', 'market_cap_basic', 'P/E')
  *   .where(
  *     col('market_cap_basic').gt(10_000_000_000), // ₹10B+
@@ -68,16 +68,16 @@
  * Multi-market screening:
  * ```typescript
  * const globalScreen = await new Query()
- *   .setMarkets(['america', 'india', 'uk', 'germany'])
+ *   .setMarkets('america', 'india', 'uk', 'germany')
  *   .where(col('market_cap_basic').gt(5_000_000_000))
  *   .getScannerData();
  * ```
  *
  * @packageDocumentation
- * @version 1.0.0
+ * @version 1.0.3
  * @author TradingView Screener TypeScript Team
  * @license MIT
- * @see {@link https://github.com/YOUR_USERNAME/TradingView-Screener-TypeScript} GitHub Repository
+ * @see {@link https://github.com/Anny26022/TradingView-Screener-ts} GitHub Repository
  * @see {@link https://www.npmjs.com/package/tradingview-screener-ts} NPM Package
  */
 
@@ -140,7 +140,7 @@ export {
   bundleInfo,
   type PerformanceMetrics,
   type CacheEntry,
-  monitored
+  monitored,
 } from './performance';
 
 export {
@@ -149,16 +149,10 @@ export {
   RequestSanitizer,
   ErrorSanitizer,
   SecurityAuditor,
-  CryptoUtils
+  CryptoUtils,
 } from './security';
 
-export {
-  Testing,
-  MockDataGenerator,
-  TestUtils,
-  MockHttpClient,
-  TestFixtures
-} from './testing';
+export { Testing, MockDataGenerator, TestUtils, MockHttpClient, TestFixtures } from './testing';
 
 export {
   Architecture,
@@ -178,6 +172,5 @@ export {
   type IDataProcessor,
   type IQueryObserver,
   type IPlugin,
-  type QueryTemplate
+  type QueryTemplate,
 } from './architecture';
-

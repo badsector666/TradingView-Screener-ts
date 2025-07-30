@@ -11,11 +11,13 @@ The TypeScript version maintains the same core functionality as the Python versi
 ### 1. Installation
 
 **Python:**
+
 ```bash
 pip install tradingview-screener
 ```
 
 **TypeScript:**
+
 ```bash
 npm install tradingview-screener
 ```
@@ -23,11 +25,13 @@ npm install tradingview-screener
 ### 2. Imports
 
 **Python:**
+
 ```python
 from tradingview_screener import Query, Column, col, And, Or
 ```
 
 **TypeScript:**
+
 ```typescript
 import { Query, Column, col, And, Or } from 'tradingview-screener';
 ```
@@ -35,11 +39,13 @@ import { Query, Column, col, And, Or } from 'tradingview-screener';
 ### 3. Async/Await
 
 **Python (Synchronous):**
+
 ```python
 result = Query().get_scanner_data()
 ```
 
 **TypeScript (Asynchronous):**
+
 ```typescript
 const result = await new Query().getScannerData();
 ```
@@ -48,53 +54,54 @@ const result = await new Query().getScannerData();
 
 Python uses `snake_case`, TypeScript uses `camelCase`:
 
-| Python | TypeScript |
-|--------|------------|
-| `get_scanner_data()` | `getScannerData()` |
+| Python                   | TypeScript            |
+| ------------------------ | --------------------- |
+| `get_scanner_data()`     | `getScannerData()`    |
 | `get_scanner_data_raw()` | `getScannerDataRaw()` |
-| `order_by()` | `orderBy()` |
-| `set_markets()` | `setMarkets()` |
-| `set_tickers()` | `setTickers()` |
-| `set_index()` | `setIndex()` |
-| `set_property()` | `setProperty()` |
+| `order_by()`             | `orderBy()`           |
+| `set_markets()`          | `setMarkets()`        |
+| `set_tickers()`          | `setTickers()`        |
+| `set_index()`            | `setIndex()`          |
+| `set_property()`         | `setProperty()`       |
 
 ### 5. Comparison Operators
 
 Python supports operator overloading, TypeScript uses methods:
 
-| Python | TypeScript |
-|--------|------------|
-| `Column('close') > 100` | `new Column('close').gt(100)` |
+| Python                   | TypeScript                     |
+| ------------------------ | ------------------------------ |
+| `Column('close') > 100`  | `new Column('close').gt(100)`  |
 | `Column('close') >= 100` | `new Column('close').gte(100)` |
-| `Column('close') < 100` | `new Column('close').lt(100)` |
+| `Column('close') < 100`  | `new Column('close').lt(100)`  |
 | `Column('close') <= 100` | `new Column('close').lte(100)` |
-| `Column('close') == 100` | `new Column('close').eq(100)` |
-| `Column('close') != 100` | `new Column('close').ne(100)` |
+| `Column('close') == 100` | `new Column('close').eq(100)`  |
+| `Column('close') != 100` | `new Column('close').ne(100)`  |
 
 ### 6. Method Names for Column Operations
 
-| Python | TypeScript |
-|--------|------------|
-| `above_pct()` | `abovePct()` |
-| `below_pct()` | `belowPct()` |
-| `between_pct()` | `betweenPct()` |
+| Python              | TypeScript        |
+| ------------------- | ----------------- |
+| `above_pct()`       | `abovePct()`      |
+| `below_pct()`       | `belowPct()`      |
+| `between_pct()`     | `betweenPct()`    |
 | `not_between_pct()` | `notBetweenPct()` |
-| `not_between()` | `notBetween()` |
-| `not_in()` | `notIn()` |
-| `has_none_of()` | `hasNoneOf()` |
-| `not_like()` | `notLike()` |
-| `not_empty()` | `notEmpty()` |
-| `crosses_above()` | `crossesAbove()` |
-| `crosses_below()` | `crossesBelow()` |
-| `in_day_range()` | `inDayRange()` |
-| `in_week_range()` | `inWeekRange()` |
-| `in_month_range()` | `inMonthRange()` |
+| `not_between()`     | `notBetween()`    |
+| `not_in()`          | `notIn()`         |
+| `has_none_of()`     | `hasNoneOf()`     |
+| `not_like()`        | `notLike()`       |
+| `not_empty()`       | `notEmpty()`      |
+| `crosses_above()`   | `crossesAbove()`  |
+| `crosses_below()`   | `crossesBelow()`  |
+| `in_day_range()`    | `inDayRange()`    |
+| `in_week_range()`   | `inWeekRange()`   |
+| `in_month_range()`  | `inMonthRange()`  |
 
 ## Migration Examples
 
 ### Basic Query
 
 **Python:**
+
 ```python
 from tradingview_screener import Query
 
@@ -105,12 +112,11 @@ for row in result[1].itertuples():
 ```
 
 **TypeScript:**
-```typescript
-import { Query } from 'tradingview-screener';
 
-const result = await new Query()
-  .select('name', 'close', 'volume')
-  .getScannerData();
+```typescript
+import { Query } from 'tradingview-screener-ts';
+
+const result = await new Query().select('name', 'close', 'volume').getScannerData();
 
 console.log(`Found ${result.totalCount} results`);
 result.data.forEach(row => {
@@ -121,6 +127,7 @@ result.data.forEach(row => {
 ### Advanced Filtering
 
 **Python:**
+
 ```python
 from tradingview_screener import Query, Column
 
@@ -137,8 +144,9 @@ result = (Query()
 ```
 
 **TypeScript:**
+
 ```typescript
-import { Query, Column } from 'tradingview-screener';
+import { Query, Column } from 'tradingview-screener-ts';
 
 const result = await new Query()
   .select('name', 'close', 'volume')
@@ -155,6 +163,7 @@ const result = await new Query()
 ### Complex Logic with AND/OR
 
 **Python:**
+
 ```python
 from tradingview_screener import Query, And, Or, col
 
@@ -172,25 +181,19 @@ result = (Query()
 ```
 
 **TypeScript:**
+
 ```typescript
-import { Query, And, Or, col } from 'tradingview-screener';
+import { Query, And, Or, col } from 'tradingview-screener-ts';
 
 const result = await new Query()
-  .where2(
-    And(
-      Or(
-        col('type').eq('stock'),
-        col('type').eq('fund')
-      ),
-      col('close').gt(10)
-    )
-  )
+  .where2(And(Or(col('type').eq('stock'), col('type').eq('fund')), col('close').gt(10)))
   .getScannerData();
 ```
 
 ### Real-time Data with Cookies
 
 **Python:**
+
 ```python
 import rookiepy
 from tradingview_screener import Query
@@ -200,8 +203,9 @@ result = Query().get_scanner_data(cookies=cookies)
 ```
 
 **TypeScript:**
+
 ```typescript
-import { Query } from 'tradingview-screener';
+import { Query } from 'tradingview-screener-ts';
 
 const cookies = { sessionid: 'your-session-id' };
 const result = await new Query().getScannerData({ cookies });
@@ -210,6 +214,7 @@ const result = await new Query().getScannerData({ cookies });
 ### Error Handling
 
 **Python:**
+
 ```python
 try:
     result = Query().limit(-5).get_scanner_data()
@@ -218,6 +223,7 @@ except Exception as e:
 ```
 
 **TypeScript:**
+
 ```typescript
 try {
   const result = await new Query().limit(-5).getScannerData();
@@ -229,6 +235,7 @@ try {
 ## Return Value Differences
 
 ### Python
+
 Returns a tuple: `(total_count: int, dataframe: pandas.DataFrame)`
 
 ```python
@@ -238,6 +245,7 @@ print(df.head())
 ```
 
 ### TypeScript
+
 Returns an object: `{ totalCount: number, data: Array<Record<string, any>> }`
 
 ```typescript
@@ -251,12 +259,12 @@ console.log(result.data.slice(0, 5));
 The TypeScript version provides full type definitions:
 
 ```typescript
-import { 
-  Query, 
-  Column, 
-  ScreenerDataResult, 
+import {
+  Query,
+  Column,
+  ScreenerDataResult,
   FilterOperationDict,
-  QueryDict 
+  QueryDict,
 } from 'tradingview-screener';
 
 // All methods and properties are fully typed
@@ -268,6 +276,7 @@ const filter: FilterOperationDict = new Column('close').gt(100);
 ## Testing
 
 **Python:**
+
 ```python
 import pytest
 
@@ -278,6 +287,7 @@ def test_query():
 ```
 
 **TypeScript:**
+
 ```typescript
 import { Query } from 'tradingview-screener';
 
@@ -313,7 +323,7 @@ test('should return results', async () => {
 
 ## Next Steps
 
-1. Install the TypeScript version: `npm install tradingview-screener`
+1. Install the TypeScript version: `npm install tradingview-screener-ts`
 2. Update your imports and method calls
 3. Add proper error handling with try/catch
 4. Take advantage of TypeScript's type system

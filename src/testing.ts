@@ -1,6 +1,6 @@
 /**
  * Advanced testing utilities and mock data
- * 
+ *
  * This module provides comprehensive testing utilities, mock data generators,
  * and test helpers to achieve 100% test coverage and quality assurance.
  */
@@ -41,7 +41,7 @@ export class MockDataGenerator {
    */
   public static generateMockCryptoData(count: number = 10): ScreenerDataResult {
     const cryptos = ['Bitcoin', 'Ethereum', 'Cardano', 'Solana', 'Polygon', 'Chainlink'];
-    
+
     const data = Array.from({ length: count }, (_, index) => ({
       name: cryptos[index % cryptos.length] || `Crypto ${index + 1}`,
       close: Math.random() * 50000 + 100,
@@ -64,7 +64,7 @@ export class MockDataGenerator {
    */
   public static generateMockIndiaStockData(count: number = 10): ScreenerDataResult {
     const indianStocks = ['Reliance', 'TCS', 'HDFC Bank', 'Infosys', 'ICICI Bank', 'Bharti Airtel'];
-    
+
     const data = Array.from({ length: count }, (_, index) => ({
       name: indianStocks[index % indianStocks.length] || `Indian Stock ${index + 1}`,
       close: Math.random() * 5000 + 100, // INR prices
@@ -91,7 +91,7 @@ export class MockDataGenerator {
   public static generateMockFilter(): FilterOperationDict {
     const operations = ['greater', 'less', 'equal', 'between', 'in_range'];
     const fields = ['close', 'volume', 'market_cap_basic', 'P/E', 'RSI'];
-    
+
     return {
       left: fields[Math.floor(Math.random() * fields.length)],
       operation: operations[Math.floor(Math.random() * operations.length)] as any,
@@ -161,8 +161,17 @@ export class TestUtils {
     }
 
     const validOperations = [
-      'greater', 'egreater', 'less', 'eless', 'equal', 'nequal',
-      'in_range', 'not_in_range', 'match', 'nmatch', 'crosses'
+      'greater',
+      'egreater',
+      'less',
+      'eless',
+      'equal',
+      'nequal',
+      'in_range',
+      'not_in_range',
+      'match',
+      'nmatch',
+      'crosses',
     ];
 
     if (!validOperations.includes(filter.operation)) {
@@ -179,7 +188,7 @@ export class TestUtils {
     const start = performance.now();
     const result = await fn();
     const end = performance.now();
-    
+
     return {
       result,
       executionTime: end - start,
@@ -202,17 +211,17 @@ export class TestUtils {
     totalTime: number;
   }> {
     const times: number[] = [];
-    
+
     for (let i = 0; i < iterations; i++) {
       const { executionTime } = await this.measureExecutionTime(fn);
       times.push(executionTime);
     }
-    
+
     const totalTime = times.reduce((sum, time) => sum + time, 0);
     const averageTime = totalTime / iterations;
     const minTime = Math.min(...times);
     const maxTime = Math.max(...times);
-    
+
     return {
       name,
       iterations,
@@ -253,7 +262,7 @@ export class TestUtils {
     if (response?.data?.length > 0) {
       const firstRow = response.data[0];
       const keys = Object.keys(firstRow);
-      
+
       response.data.forEach((row: any, index: number) => {
         const rowKeys = Object.keys(row);
         if (rowKeys.length !== keys.length) {
@@ -286,12 +295,12 @@ export class TestUtils {
     const failed = results.filter(r => r.status === 'failed').length;
     const skipped = results.filter(r => r.status === 'skipped').length;
     const duration = results.reduce((sum, r) => sum + (r.duration || 0), 0);
-    
+
     // Mock coverage calculation (in real scenario, this would come from coverage tools)
-    const coverage = passed / totalTests * 100;
-    
-    const summary = `${passed}/${totalTests} tests passed (${(passed/totalTests*100).toFixed(1)}%)`;
-    
+    const coverage = (passed / totalTests) * 100;
+
+    const summary = `${passed}/${totalTests} tests passed (${((passed / totalTests) * 100).toFixed(1)}%)`;
+
     return {
       totalTests,
       passed,
