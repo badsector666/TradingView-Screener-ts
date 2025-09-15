@@ -437,24 +437,32 @@ export class Query {
    * });
    * ```
    */
-  public async getScannerData(config: RequestConfig = {}): Promise<ScreenerDataResult> {
-    const jsonObj = await this.getScannerDataRaw(config);
-    const rowsCount = jsonObj.totalCount;
-    const data = jsonObj.data;
-
-    const columns = this.query.columns || [];
-    const structuredData = data.map(row => {
-      const result: Record<string, any> = { ticker: row.s };
-      columns.forEach((column, index) => {
-        result[column] = row.d[index];
-      });
-      return result;
-    });
-
-    return {
-      totalCount: rowsCount,
-      data: structuredData,
-    };
+  public async getScannerData(config: RequestConfig = {}): Promise<ScreenerDataResult> {  
+    const jsonObj = await this.getScannerDataRaw(config);  
+    const rowsCount = jsonObj.totalCount;  
+    const data = jsonObj.data;  
+    
+    // Add null check here  
+    if (!data) {  
+      return {  
+        totalCount: rowsCount,  
+        data: []  
+      };  
+    }  
+    
+    const columns = this.query.columns || [];  
+    const structuredData = data.map(row => {  
+      const result: Record<string, any> = { ticker: row.s };  
+      columns.forEach((column, index) => {  
+        result[column] = row.d[index];  
+      });  
+      return result;  
+    });  
+    
+    return {  
+      totalCount: rowsCount,  
+      data: structuredData,  
+    };  
   }
 
   /**

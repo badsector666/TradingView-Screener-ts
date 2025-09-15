@@ -112,7 +112,7 @@ export class CryptoQueryBuilder implements IQueryBuilder {
   }
 
   public setLimit(limit: number): IQueryBuilder {
-    this.query.range = [0, Math.min(limit, 500)];
+    this.query.range = [0, Math.min(limit, 100000)];
     return this;
   }
 
