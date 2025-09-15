@@ -2,7 +2,7 @@
  * Basic usage examples for TradingView Screener TypeScript
  */
 
-import { Query, Column, col, And, Or } from 'tradingview-screener-ts';
+import { Query, Column, col, And, Or } from '../src';
 
 async function basicExample(): Promise<void> {
   console.log('=== Basic Example ===');
