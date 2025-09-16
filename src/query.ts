@@ -410,11 +410,14 @@ export class Query {
         requestConfig
       );
       return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error) && error.response) {
-        const errorMessage = `HTTP ${error.response.status}: ${error.response.statusText}\nBody: ${JSON.stringify(error.response.data)}`;
+    } catch (error: unknown) { // Explicitly type error as unknown
+      // Check if it's an error with a response property (likely an HTTP error)
+      if (error instanceof Error && 'response' in error && error.response && typeof error.response === 'object') {
+        const httpError = error as any; // Cast to any to access response properties safely
+        const errorMessage = `HTTP ${httpError.response.status}: ${httpError.response.statusText}\nBody: ${JSON.stringify(httpError.response.data)}`;
         throw new Error(errorMessage);
       }
+      // If it's not an Error instance at all, re-throw as is
       throw error;
     }
   }
@@ -437,32 +440,32 @@ export class Query {
    * });
    * ```
    */
-  public async getScannerData(config: RequestConfig = {}): Promise<ScreenerDataResult> {  
-    const jsonObj = await this.getScannerDataRaw(config);  
-    const rowsCount = jsonObj.totalCount;  
-    const data = jsonObj.data;  
-    
-    // Add null check here  
-    if (!data) {  
-      return {  
-        totalCount: rowsCount,  
-        data: []  
-      };  
-    }  
-    
-    const columns = this.query.columns || [];  
-    const structuredData = data.map(row => {  
-      const result: Record<string, any> = { ticker: row.s };  
-      columns.forEach((column, index) => {  
-        result[column] = row.d[index];  
-      });  
-      return result;  
-    });  
-    
-    return {  
-      totalCount: rowsCount,  
-      data: structuredData,  
-    };  
+  public async getScannerData(config: RequestConfig = {}): Promise<ScreenerDataResult> {
+    const jsonObj = await this.getScannerDataRaw(config);
+    const rowsCount = jsonObj.totalCount;
+    const data = jsonObj.data;
+
+    // Add null check here
+    if (!data) {
+      return {
+        totalCount: rowsCount,
+        data: []
+      };
+    }
+
+    const columns = this.query.columns || [];
+    const structuredData = data.map(row => {
+      const result: Record<string, any> = { ticker: row.s };
+      columns.forEach((column, index) => {
+        result[column] = row.d[index];
+      });
+      return result;
+    });
+
+    return {
+      totalCount: rowsCount,
+      data: structuredData,
+    };
   }
 
   /**

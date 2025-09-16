@@ -75,9 +75,13 @@
     "CREDITS.md"
   ],
   "dependencies": {
+    "@elysiajs/cors": "^1.4.0",
+    "@elysiajs/static": "^1.4.0",
+    "elysia": "^1.4.5",
     "redaxios": "^0.5.1"
   },
   "devDependencies": {
+    "@types/bun": "^1.2.22",
     "@types/jest": "^29.5.8",
     "@types/node": "^20.9.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",

@@ -1,109 +1,126 @@
-import { Query , col} from './exports';
-import fs from 'fs';
+import { Elysia, t, Context } from 'elysia';
+import { cors } from '@elysiajs/cors';
+import { staticPlugin } from '@elysiajs/static';
+import { Query, col, And, Or, MARKETS_LIST } from './exports';
+import type { FilterOperationDict, OperationDict } from './exports';
 
-/**
- * Example: Get unique symbols
- *
- * This example demonstrates how to get a list of unique symbols from the collected ticker data.
- */
-function getUniqueSymbols(tickers: string[]): string[] {
-  const uniqueSymbols: Set<string> = new Set();
-
-  tickers.forEach(ticker => {
-    const [, symbol] = ticker.split(':');
-    uniqueSymbols.add(symbol);
-  });
-
-  // Save to JSON file
-  fs.writeFileSync('configs/unique_symbols.json', JSON.stringify(Array.from(uniqueSymbols), null, 2));
-
-  return Array.from(uniqueSymbols);
+// Define the interface for the request body
+interface QueryRequestBody {
+  columns?: string[];
+  markets?: string[];
+  filters?: {
+    column: string;
+    operation: string;
+    value: any; // This might need refinement if specific types are known
+  }[];
+  orderBy?: string;
+  orderDirection?: boolean;
+  limit?: number;
+  offset?: number;
 }
 
-/**
- * Example: Get all crypto tickers using pagination
- *
- * This example shows how to retrieve all available cryptocurrency tickers
- * by using pagination with the limit() and offset() methods.
- */
-async function getAllCryptoTickers() {
-  const allTickers = [];
-  let offset = 0;
-  const batchSize = 100000;
+// Define the schema for Elysia
+const querySchema = {
+  body: t.Object({
+    columns: t.Optional(t.Array(t.String())),
+    markets: t.Optional(t.Array(t.String())),
+    filters: t.Optional(t.Array(t.Object({
+      column: t.String(),
+      operation: t.String(),
+      value: t.Any() // Consider refining this if possible, e.g., t.Union([t.String(), t.Number(), t.Array(t.Any())])
+    }))),
+    orderBy: t.Optional(t.String()),
+    orderDirection: t.Optional(t.Boolean()),
+    limit: t.Optional(t.Numeric()),
+    offset: t.Optional(t.Numeric())
+  })
+};
 
-  while (true) {
-    console.log(`Fetching batch starting at offset ${offset}...`);
+const app = new Elysia()
+  .use(cors())
+  .use(staticPlugin({
+    assets: 'public',
+    prefix: '/'
+  }))
+  
+  // Serve the HTML interface
+  .get('/', () => Bun.file('public/index.html'))
+  
+  // API endpoint to get available markets
+  .get('/api/markets', () => ({
+    success: true,
+    data: MARKETS_LIST
+  }))
+  
+  // API endpoint to execute queries
+  .post('/api/query', async (context: Context<{ body: QueryRequestBody }>) => { // Use imported Context
+    const { body } = context; // Destructure body from context
 
-    const result = await new Query()
-      .setMarkets('crypto')
-      // .select('name') // Minimal columns for faster requests
-      .select('name', 'close', 'volume', 'market_cap_basic')  
-      .where(
-        col('name').like('USDT.P')
-      )  
-      .orderBy('market_cap_basic', false) // false = descending 
-      .limit(batchSize)
-      .offset(offset)
-      .getScannerData();
+    try {
+      const { 
+        columns = ['name', 'close', 'volume', 'market_cap_basic'],
+        markets = ['america'],
+        filters = [],
+        orderBy,
+        orderDirection = false,
+        limit = 50,
+        offset = 0
+      } = body; // body is now typed by Elysia's schema
 
-    // Break if no more results
-    if (result.data.length === 0) {
-      console.log('No more results found');
-      break;
+      let query = new Query()
+        .select(...columns)
+        .setMarkets(...markets)
+        .limit(limit)
+        .offset(offset);
+
+      // Apply filters if provided
+      if (filters && filters.length > 0) {
+        const filterOperations = filters.map((filter: any) => {
+          const column = col(filter.column);
+          const value = filter.value;
+          
+          switch (filter.operation) {
+            case 'gt': return column.gt(value);
+            case 'gte': return column.gte(value);
+            case 'lt': return column.lt(value);
+            case 'lte': return column.lte(value);
+            case 'eq': return column.eq(value);
+            case 'ne': return column.ne(value);
+            case 'between': return column.between(value[0], value[1]);
+            case 'isin': return column.isin(value);
+            default: return column.gt(0);
+          }
+        });
+        
+        query = query.where(...filterOperations);
+      }
+
+      // Apply ordering if specified
+      if (orderBy) {
+        query = query.orderBy(orderBy, orderDirection);
+      }
+
+      const result = await query.getScannerData();
+      
+      return {
+        success: true,
+        data: result
+      };
+    } catch (error) {
+      console.error('Query execution error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
     }
+  }, querySchema) // Pass the schema here
+  
+  // Health check endpoint
+  .get('/api/health', () => ({
+    status: 'healthy',
+    timestamp: new Date().toISOString()
+  }))
+  
+  .listen(3000);
 
-    // Extract tickers from this batch
-    const tickers = result.data.map(row => row.ticker);
-    allTickers.push(...tickers);
-
-    console.log(`Collected ${tickers.length} tickers (total: ${allTickers.length})`);
-
-    // Move to next batch
-    offset += batchSize;
-
-    // Optional: Add delay to avoid rate limiting
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-
-  // Save to JSON file
-  fs.writeFileSync('configs/all_crypto_tickers.json', JSON.stringify(allTickers, null, 2));
-
-  console.log(`Total tickers collected: ${allTickers.length}`);
-  return allTickers;
-}
-
-/**
- * Example: Create exchange-symbol mapping
- *
- * This example demonstrates how to create a mapping of exchanges to their
- * respective symbols from the collected ticker data.
- */
-function createExchangeMapping(tickers: string[]) {
-  const exchangeMap: Record<string, string[]> = {};
-
-  tickers.forEach(ticker => {
-    const [exchange, symbol] = ticker.split(':');
-    if (!exchangeMap[exchange]) {
-      exchangeMap[exchange] = [];
-    }
-    exchangeMap[exchange].push(symbol);
-  });
-
-  // Save to JSON file
-  fs.writeFileSync('configs/exchange_mapping.json', JSON.stringify(exchangeMap, null, 2));
-
-  return exchangeMap;
-}
-
-// Example usage
-(async () => {
-  // Get all crypto tickers
-  const allTickers = await getAllCryptoTickers();
-  // console.log('All Crypto Tickers:', allTickers);
-
-  // Create exchange-symbol mapping
-  const exchangeMap = createExchangeMapping(allTickers);
-  // console.log('Exchange-Symbol Mapping:', exchangeMap);
-  const uniqueSymbols = getUniqueSymbols(allTickers);
-  console.log('Unique Symbols:', uniqueSymbols);
-})();
+console.log(`🦊 TradingView Screener Server is running at http://localhost:3000`);
