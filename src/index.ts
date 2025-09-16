@@ -1,176 +1,109 @@
+import { Query , col} from './exports';
+import fs from 'fs';
+
 /**
- * TradingView Screener TypeScript Library
+ * Example: Get unique symbols
  *
- * A world-class TypeScript package for creating stock screeners with the TradingView API.
- * This package retrieves data directly from TradingView without web scraping or HTML parsing.
- *
- * 🎯 **100% Python Parity** - Complete feature compatibility with the original Python library
- * 🔒 **Full Type Safety** - Comprehensive TypeScript definitions with IntelliSense support
- * 🌍 **Global Markets** - 67+ countries including dedicated India market support
- * 📊 **3000+ Fields** - Complete access to all TradingView data fields
- * ⚡ **Modern Async** - Promise-based API with async/await patterns
- * 🇮🇳 **India Market** - Dedicated support with INR currency formatting
- *
- * @example
- * Basic stock screening:
- * ```typescript
- * import { Query, col } from 'tradingview-screener-ts';
- *
- * const result = await new Query()
- *   .select('name', 'close', 'volume', 'market_cap_basic')
- *   .where(
- *     col('market_cap_basic').gt(1_000_000_000),
- *     col('volume').gt(1_000_000)
- *   )
- *   .getScannerData();
- *
- * console.log(`Found ${result.totalCount} stocks`);
- * ```
- *
- * @example
- * India market screening:
- * ```typescript
- * import { Query, col } from 'tradingview-screener-ts';
- *
- * const indiaStocks = await new Query()
- *   .setMarkets('india')
- *   .select('name', 'close', 'volume', 'market_cap_basic', 'P/E')
- *   .where(
- *     col('market_cap_basic').gt(10_000_000_000), // ₹10B+
- *     col('P/E').between(8, 35),
- *     col('volume').gt(100_000)
- *   )
- *   .getScannerData();
- * ```
- *
- * @example
- * Advanced technical analysis:
- * ```typescript
- * import { Query, col, And, Or } from 'tradingview-screener-ts';
- *
- * const technicalScreen = await new Query()
- *   .select('name', 'close', 'RSI', 'MACD.macd', 'MACD.signal')
- *   .where(
- *     And(
- *       col('RSI').between(30, 70),
- *       col('MACD.macd').gt(col('MACD.signal')),
- *       Or(
- *         col('close').gt(col('EMA20')),
- *         col('volume').gt(col('volume').sma(20))
- *       )
- *     )
- *   )
- *   .orderBy('volume', false)
- *   .getScannerData();
- * ```
- *
- * @example
- * Multi-market screening:
- * ```typescript
- * const globalScreen = await new Query()
- *   .setMarkets('america', 'india', 'uk', 'germany')
- *   .where(col('market_cap_basic').gt(5_000_000_000))
- *   .getScannerData();
- * ```
- *
- * @packageDocumentation
- * @version 1.0.3
- * @author TradingView Screener TypeScript Team
- * @license MIT
- * @see {@link https://github.com/Anny26022/TradingView-Screener-ts} GitHub Repository
- * @see {@link https://www.npmjs.com/package/tradingview-screener-ts} NPM Package
+ * This example demonstrates how to get a list of unique symbols from the collected ticker data.
  */
+function getUniqueSymbols(tickers: string[]): string[] {
+  const uniqueSymbols: Set<string> = new Set();
 
-// Export main classes
-export { Query, And, Or, DEFAULT_RANGE, URL, HEADERS } from './query';
-export { Column, col } from './column';
+  tickers.forEach(ticker => {
+    const [, symbol] = ticker.split(':');
+    uniqueSymbols.add(symbol);
+  });
 
-// Export utility functions
-export { formatTechnicalRating } from './util';
+  // Save to JSON file
+  fs.writeFileSync('configs/unique_symbols.json', JSON.stringify(Array.from(uniqueSymbols), null, 2));
 
-// Export all types
-export type {
-  FilterOperation,
-  FilterOperationDict,
-  SortOrder,
-  SortByDict,
-  SymbolsDict,
-  ExpressionDict,
-  LogicalOperator,
-  OperationComparisonDict,
-  OperationDict,
-  ScreenerPreset,
-  PriceConversion,
-  QueryDict,
-  ScreenerRowDict,
-  ScreenerDict,
-  RequestConfig,
-  ScreenerDataResult,
-} from './types/models';
+  return Array.from(uniqueSymbols);
+}
 
-export type { TechnicalRating } from './util';
+/**
+ * Example: Get all crypto tickers using pagination
+ *
+ * This example shows how to retrieve all available cryptocurrency tickers
+ * by using pagination with the limit() and offset() methods.
+ */
+async function getAllCryptoTickers() {
+  const allTickers = [];
+  let offset = 0;
+  const batchSize = 100000;
 
-// Re-export for convenience
-export { Query as default } from './query';
+  while (true) {
+    console.log(`Fetching batch starting at offset ${offset}...`);
 
-// Export constants - maintaining Python compatibility
-export {
-  MARKETS,
-  MARKETS_WITH_NAMES,
-  MARKETS_LIST,
-  ASSET_CLASSES,
-  COUNTRY_MARKETS,
-  MARKET_INFO,
-  isValidMarket,
-  getMarketInfo,
-  getMarketName,
-  getMarketCode,
-  getMarketsByType,
-} from './constants';
+    const result = await new Query()
+      .setMarkets('crypto')
+      // .select('name') // Minimal columns for faster requests
+      .select('name', 'close', 'volume', 'market_cap_basic')  
+      .where(
+        col('name').like('USDT.P')
+      )  
+      .orderBy('market_cap_basic', false) // false = descending 
+      .limit(batchSize)
+      .offset(offset)
+      .getScannerData();
 
-export type { Market, MarketTuple, AssetClass, CountryMarket } from './constants';
+    // Break if no more results
+    if (result.data.length === 0) {
+      console.log('No more results found');
+      break;
+    }
 
-// Export advanced modules for enterprise features
-export {
-  performanceMonitor,
-  PerformanceMonitor,
-  RateLimiter,
-  rateLimiter,
-  MemoryMonitor,
-  bundleInfo,
-  type PerformanceMetrics,
-  type CacheEntry,
-  monitored,
-} from './performance';
+    // Extract tickers from this batch
+    const tickers = result.data.map(row => row.ticker);
+    allTickers.push(...tickers);
 
-export {
-  Security,
-  InputValidator,
-  RequestSanitizer,
-  ErrorSanitizer,
-  SecurityAuditor,
-  CryptoUtils,
-} from './security';
+    console.log(`Collected ${tickers.length} tickers (total: ${allTickers.length})`);
 
-export { Testing, MockDataGenerator, TestUtils, MockHttpClient, TestFixtures } from './testing';
+    // Move to next batch
+    offset += batchSize;
 
-export {
-  Architecture,
-  QueryFactory,
-  StockQueryBuilder,
-  CryptoQueryBuilder,
-  ForexQueryBuilder,
-  IndiaStockQueryBuilder,
-  StockDataProcessor,
-  IndiaStockDataProcessor,
-  CryptoDataProcessor,
-  DataProcessingContext,
-  QueryEventManager,
-  PerformanceObserver,
-  PluginManager,
-  type IQueryBuilder,
-  type IDataProcessor,
-  type IQueryObserver,
-  type IPlugin,
-  type QueryTemplate,
-} from './architecture';
+    // Optional: Add delay to avoid rate limiting
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  // Save to JSON file
+  fs.writeFileSync('configs/all_crypto_tickers.json', JSON.stringify(allTickers, null, 2));
+
+  console.log(`Total tickers collected: ${allTickers.length}`);
+  return allTickers;
+}
+
+/**
+ * Example: Create exchange-symbol mapping
+ *
+ * This example demonstrates how to create a mapping of exchanges to their
+ * respective symbols from the collected ticker data.
+ */
+function createExchangeMapping(tickers: string[]) {
+  const exchangeMap: Record<string, string[]> = {};
+
+  tickers.forEach(ticker => {
+    const [exchange, symbol] = ticker.split(':');
+    if (!exchangeMap[exchange]) {
+      exchangeMap[exchange] = [];
+    }
+    exchangeMap[exchange].push(symbol);
+  });
+
+  // Save to JSON file
+  fs.writeFileSync('configs/exchange_mapping.json', JSON.stringify(exchangeMap, null, 2));
+
+  return exchangeMap;
+}
+
+// Example usage
+(async () => {
+  // Get all crypto tickers
+  const allTickers = await getAllCryptoTickers();
+  // console.log('All Crypto Tickers:', allTickers);
+
+  // Create exchange-symbol mapping
+  const exchangeMap = createExchangeMapping(allTickers);
+  // console.log('Exchange-Symbol Mapping:', exchangeMap);
+  const uniqueSymbols = getUniqueSymbols(allTickers);
+  console.log('Unique Symbols:', uniqueSymbols);
+})();
