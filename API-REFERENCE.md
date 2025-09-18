@@ -56,6 +56,7 @@ class Query {
   // Execution methods
   getScannerData(): Promise<ScreenerDataResult>;
   getScannerDataRaw(): Promise<any>;
+  getScannerDataStream(): Promise<NodeJS.ReadableStream>;
 
   // Utility methods
   copy(): Query;
@@ -228,7 +229,23 @@ Execute the query and return raw API response.
 const rawResult = await query.getScannerDataRaw();
 ```
 
+#### `getScannerDataStream(): Promise<NodeJS.ReadableStream>`
+
+Execute the query and return a readable stream of the raw API response.
+
+```typescript
+const stream = await query.getScannerDataStream();
+stream.on('data', (chunk) => {
+  console.log(`Received ${chunk.length} bytes`);
+});
+stream.on('end', () => {
+  console.log('Stream finished.');
+});
+```
+
 ---
+
+## 🔧 Column Operations
 
 ## 🔧 Column Operations
 

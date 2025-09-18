@@ -1,0 +1,330 @@
+# DeepWiki Q&A with Code Context for Repository: Anny26022/TradingView-Screener-ts
+
+
+## Q1
+
+How can we stream the result? Because it take too much time to load after I increase the limit.
+Waiting until finish is not good, and limiting to only 500 is also bad.
+
+
+### Answer
+
+Looking at your query about streaming results when increasing the limit beyond 500, I can see you're asking about the TradingView Screener TypeScript library's `Query` class and its data retrieval methods. <cite/>
+
+## Current Limitations
+
+The library currently doesn't support streaming results. TradingView-Screener-ts:383-420  The `getScannerDataRaw()` method makes a single HTTP POST request and waits for the complete response before returning data. TradingView-Screener-ts:213-229 
+
+Different query builders have different maximum limits built-in:
+- `StockQueryBuilder`: max 1000 results TradingView-Screener-ts:75-77 
+- `CryptoQueryBuilder`: max 500 results TradingView-Screener-ts:114-116 
+- `ForexQueryBuilder`: max 200 results TradingView-Screener-ts:151-153 
+- `IndiaStockQueryBuilder`: max 500 results TradingView-Screener-ts:190-192 
+
+## Workaround Solutions
+
+Since streaming isn't available, you can implement pagination using the `offset()` and `limit()` methods: TradingView-Screener-ts:271-277 
+
+```typescript
+// Fetch data in chunks
+const pageSize = 500;
+let offset = 0;
+const allResults = [];
+
+while (true) {
+  const batch = await new Query()
+    .select('name', 'close', 'volume')
+    .limit(pageSize)
+    .offset(offset)
+    .getScannerData();
+    
+  allResults.push(...batch.data);
+  
+  if (batch.data.length < pageSize) break;
+  offset += pageSize;
+}
+```
+
+## Performance Monitoring
+
+The library includes performance monitoring capabilities that could help optimize large queries: TradingView-Screener-ts:383-421  The `SecurityAuditor.auditQuery()` method warns about large result sets and recommends pagination for datasets over 1000 records.
+
+## Notes
+
+The TradingView API itself appears to be designed for batch requests rather than streaming, as evidenced by the single POST request pattern used throughout the codebase. The future roadmap mentions "WebSocket support for real-time streaming" TradingView-Screener-ts:239-239  but this isn't currently implemented.
+
+Wiki pages you might want to explore:
+- [Core API (Anny26022/TradingView-Screener-ts)](/wiki/Anny26022/TradingView-Screener-ts#3)
+- [Advanced Features (Anny26022/TradingView-Screener-ts)](/wiki/Anny26022/TradingView-Screener-ts#5)
+
+
+### Citations
+
+
+**File:** src/query.ts (L271-277)
+
+```typescript
+  public offset(offset: number): this {
+    if (!this.query.range) {
+      this.query.range = [...DEFAULT_RANGE];
+    }
+    this.query.range[0] = offset;
+    return this;
+  }
+```
+
+**File:** src/query.ts (L383-420)
+
+```typescript
+  public async getScannerDataRaw(config: RequestConfig = {}): Promise<ScreenerDict> {
+    if (!this.query.range) {
+      this.query.range = [...DEFAULT_RANGE];
+    }
+
+    const requestConfig: AxiosRequestConfig = {
+      headers: { ...HEADERS, ...config.headers },
+      timeout: config.timeout || 20000,
+      ...config,
+    };
+
+    // Handle cookies
+    if (config.cookies) {
+      if (typeof config.cookies === 'string') {
+        requestConfig.headers!['Cookie'] = config.cookies;
+      } else {
+        const cookieString = Object.entries(config.cookies)
+          .map(([key, value]) => `${key}=${value}`)
+          .join('; ');
+        requestConfig.headers!['Cookie'] = cookieString;
+      }
+    }
+
+    try {
+      const response: AxiosResponse<ScreenerDict> = await axios.post(
+        this.url,
+        this.query,
+        requestConfig
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        const errorMessage = `HTTP ${error.response.status}: ${error.response.statusText}\nBody: ${JSON.stringify(error.response.data)}`;
+        throw new Error(errorMessage);
+      }
+      throw error;
+    }
+  }
+```
+
+**File:** API-REFERENCE.md (L213-229)
+
+```markdown
+#### `getScannerData(): Promise<ScreenerDataResult>`
+
+Execute the query and return structured results.
+
+```typescript
+const result = await query.getScannerData();
+console.log(`Found ${result.totalCount} results`);
+result.data.forEach(row => console.log(row));
+```
+
+#### `getScannerDataRaw(): Promise<any>`
+
+Execute the query and return raw API response.
+
+```typescript
+const rawResult = await query.getScannerDataRaw();
+```
+```
+
+**File:** src/architecture.ts (L75-77)
+
+```typescript
+  public setLimit(limit: number): IQueryBuilder {
+    this.query.range = [0, Math.min(limit, 1000)];
+    return this;
+```
+
+**File:** src/architecture.ts (L114-116)
+
+```typescript
+  public setLimit(limit: number): IQueryBuilder {
+    this.query.range = [0, Math.min(limit, 500)];
+    return this;
+```
+
+**File:** src/architecture.ts (L151-153)
+
+```typescript
+  public setLimit(limit: number): IQueryBuilder {
+    this.query.range = [0, Math.min(limit, 200)];
+    return this;
+```
+
+**File:** src/architecture.ts (L190-192)
+
+```typescript
+  public setLimit(limit: number): IQueryBuilder {
+    this.query.range = [0, Math.min(limit, 500)];
+    return this;
+```
+
+**File:** src/security.ts (L383-421)
+
+```typescript
+  public static auditQuery(query: any): {
+    isSecure: boolean;
+    warnings: string[];
+    recommendations: string[];
+  } {
+    const warnings: string[] = [];
+    const recommendations: string[] = [];
+
+    // Check for overly broad queries
+    if (!query.filter && !query.filter2) {
+      warnings.push('Query has no filters - may return excessive data');
+      recommendations.push('Add filters to limit result set');
+    }
+
+    // Check for large limits
+    if (query.range && query.range[1] - query.range[0] > 1000) {
+      warnings.push('Large result set requested');
+      recommendations.push('Consider pagination for large datasets');
+    }
+
+    // Check for suspicious column names
+    if (query.columns) {
+      const suspiciousPatterns = [/script/i, /eval/i, /function/i, /javascript/i];
+      const suspiciousColumns = query.columns.filter((col: string) =>
+        suspiciousPatterns.some(pattern => pattern.test(col))
+      );
+
+      if (suspiciousColumns.length > 0) {
+        warnings.push(`Suspicious column names detected: ${suspiciousColumns.join(', ')}`);
+        recommendations.push('Review column names for potential security issues');
+      }
+    }
+
+    return {
+      isSecure: warnings.length === 0,
+      warnings,
+      recommendations,
+    };
+  }
+```
+
+**File:** CHANGELOG.md (L239-239)
+
+```markdown
+- WebSocket support for real-time streaming
+```
+
+## Q2
+
+I mean we implement streaming result from axios, not by the codebase.
+
+
+### Answer
+
+You're asking about implementing streaming responses using axios's built-in streaming capabilities in the TradingView Screener library, rather than modifying the library's codebase itself. <cite/>
+
+## Current Implementation
+
+The library currently uses a standard axios POST request that waits for the complete response: TradingView-Screener-ts:407-412 
+
+## Axios Streaming Implementation
+
+You can modify the `getScannerDataRaw()` method to use axios's `responseType: 'stream'` option to handle large responses incrementally. <cite/> Here's how you could implement this:
+
+```typescript
+import { Transform } from 'stream';
+
+// Custom streaming version of getScannerDataRaw
+public async getScannerDataStream(config: RequestConfig = {}): Promise<NodeJS.ReadableStream> {
+  if (!this.query.range) {
+    this.query.range = [...DEFAULT_RANGE];
+  }
+
+  const requestConfig: AxiosRequestConfig = {
+    headers: { ...HEADERS, ...config.headers },
+    timeout: config.timeout || 20000,
+    responseType: 'stream', // Enable streaming
+    ...config,
+  };
+
+  const response = await axios.post(this.url, this.query, requestConfig);
+  return response.data; // Returns a readable stream
+}
+```
+
+## Processing Streamed Data
+
+You can then process the streamed response chunk by chunk: <cite/>
+
+```typescript
+const stream = await query.getScannerDataStream();
+const chunks: Buffer[] = [];
+
+stream.on('data', (chunk: Buffer) => {
+  chunks.push(chunk);
+  // Process partial data if needed
+  console.log(`Received ${chunk.length} bytes`);
+});
+
+stream.on('end', () => {
+  const completeData = Buffer.concat(chunks);
+  const jsonData = JSON.parse(completeData.toString());
+  // Process complete response
+});
+```
+
+## Limitations
+
+The TradingView API returns JSON responses as complete objects, so true streaming benefits are limited since you need the complete JSON to parse it properly. TradingView-Screener-ts:441-457  The main advantage would be memory efficiency for very large responses and the ability to show download progress.
+
+## Notes
+
+This approach works best when the API supports chunked responses or streaming JSON formats like NDJSON. Since TradingView's scanner API returns standard JSON objects, you'll still need to wait for the complete response before parsing, but you can monitor download progress and handle memory more efficiently for large datasets.
+
+Wiki pages you might want to explore:
+- [Core API (Anny26022/TradingView-Screener-ts)](/wiki/Anny26022/TradingView-Screener-ts#3)
+
+
+### Citations
+
+
+**File:** src/query.ts (L407-412)
+
+```typescript
+      const response: AxiosResponse<ScreenerDict> = await axios.post(
+        this.url,
+        this.query,
+        requestConfig
+      );
+      return response.data;
+```
+
+**File:** src/query.ts (L441-457)
+
+```typescript
+    const jsonObj = await this.getScannerDataRaw(config);
+    const rowsCount = jsonObj.totalCount;
+    const data = jsonObj.data;
+
+    const columns = this.query.columns || [];
+    const structuredData = data.map(row => {
+      const result: Record<string, any> = { ticker: row.s };
+      columns.forEach((column, index) => {
+        result[column] = row.d[index];
+      });
+      return result;
+    });
+
+    return {
+      totalCount: rowsCount,
+      data: structuredData,
+    };
+```
+
+https://deepwiki.com/search/how-can-we-stream-the-result-b_a13795b1-eca8-467b-95c2-3cede1c28b5c

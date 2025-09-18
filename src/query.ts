@@ -440,6 +440,39 @@ export class Query {
    * });
    * ```
    */
+  /**
+   * Custom streaming version of getScannerDataRaw
+   * @param config - Additional request configuration
+   * @returns A readable stream of the raw API response
+   */
+  public async getScannerDataStream(config: RequestConfig = {}): Promise<NodeJS.ReadableStream> {
+    if (!this.query.range) {
+      this.query.range = [...DEFAULT_RANGE];
+    }
+
+    const requestConfig: AxiosRequestConfig = {
+      headers: { ...HEADERS, ...config.headers },
+      timeout: config.timeout || 20000,
+      responseType: 'stream', // Enable streaming
+      ...config,
+    };
+
+    // Handle cookies
+    if (config.cookies) {
+      if (typeof config.cookies === 'string') {
+        requestConfig.headers!['Cookie'] = config.cookies;
+      } else {
+        const cookieString = Object.entries(config.cookies)
+          .map(([key, value]) => `${key}=${value}`)
+          .join('; ');
+        requestConfig.headers!['Cookie'] = cookieString;
+      }
+    }
+
+    const response = await axios.post(this.url, this.query, requestConfig);
+    return response.data; // Returns a readable stream
+  }
+
   public async getScannerData(config: RequestConfig = {}): Promise<ScreenerDataResult> {
     const jsonObj = await this.getScannerDataRaw(config);
     const rowsCount = jsonObj.totalCount;

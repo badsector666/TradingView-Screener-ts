@@ -53,7 +53,7 @@ const app = new Elysia()
   }))
   
   // API endpoint to execute queries
-  .post('/api/query', async (context: Context<{ body: QueryRequestBody }>) => { // Use imported Context
+    .post('/api/query', async (context: Context<{ body: QueryRequestBody }>) => { // Use imported Context
     const { body } = context; // Destructure body from context
 
     try {
@@ -100,12 +100,13 @@ const app = new Elysia()
         query = query.orderBy(orderBy, orderDirection);
       }
 
-      const result = await query.getScannerData();
+      const stream = await query.getScannerDataStream();
       
-      return {
-        success: true,
-        data: result
-      };
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
     } catch (error) {
       console.error('Query execution error:', error);
       return {
