@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TradingView Screener Interface</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/clusterize.js@0.19.0/clusterize.min.css">
     <style>
         * {
             margin: 0;
@@ -185,6 +186,11 @@
             margin-bottom: 20px;
         }
         
+        #resultsContent {
+            height: 60vh; /* A fixed height is needed for virtualization */
+            overflow-y: auto;
+        }
+
         .results-table {
             width: 100%;
             border-collapse: collapse;
@@ -205,6 +211,9 @@
             background: #2c3e50;
             color: white;
             font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 1;
         }
         
         .results-table tr:hover {
@@ -373,6 +382,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/clusterize.js@0.19.0/clusterize.min.js"></script>
     <script type="module">
         import { create, insert, search } from 'https://cdn.jsdelivr.net/npm/@orama/orama@latest/+esm'
         
@@ -394,7 +404,8 @@
         let availableMarkets = [];
         let searchDB;
         let currentResults = [];
-        
+        let clusterize;
+
         // Initialize the application
         document.addEventListener('DOMContentLoaded', async function() {
             await loadMarkets();
@@ -670,30 +681,24 @@
             const resultsCount = document.getElementById('resultsCount');
             
             resultsCount.textContent = `${totalCount} results`;
-            
-            const table = document.createElement('table');
-            table.className = 'results-table';
-            
-            const thead = document.createElement('thead');
-            const headerRow = document.createElement('tr');
-            
+
+            if (data.length === 0) {
+                resultsContent.innerHTML = '';
+                if (clusterize) clusterize.destroy();
+                return;
+            }
+
             const columnNames = Object.keys(data[0]);
+
+            let headerHtml = '<thead><tr>';
             columnNames.forEach(columnName => {
-                const th = document.createElement('th');
-                th.textContent = columnName.charAt(0).toUpperCase() + columnName.slice(1).replace(/_/g, ' ');
-                headerRow.appendChild(th);
+                headerHtml += `<th>${columnName.charAt(0).toUpperCase() + columnName.slice(1).replace(/_/g, ' ')}</th>`;
             });
-            
-            thead.appendChild(headerRow);
-            table.appendChild(thead);
-            
-            const tbody = document.createElement('tbody');
-            
-            data.forEach(row => {
-                const tr = document.createElement('tr');
-                
+            headerHtml += '</tr></thead>';
+
+            const rows = data.map(row => {
+                let rowHtml = '<tr>';
                 columnNames.forEach(columnName => {
-                    const td = document.createElement('td');
                     let value = row[columnName];
                     
                     if (typeof value === 'number') {
@@ -704,28 +709,47 @@
                         }
                     }
                     
+                    let cellContent = value || '-';
                     if (highlightTerm && String(value).toLowerCase().includes(highlightTerm.toLowerCase())) {
                         const regex = new RegExp(`(${highlightTerm})`, 'gi');
-                        td.innerHTML = String(value).replace(regex, '<span class="highlight">$1</span>');
-                    } else {
-                        td.textContent = value || '-';
-                    }
-                    
-                    tr.appendChild(td);
+                        cellContent = String(value).replace(regex, `<span class="highlight">$1</span>`);
+                    } 
+
+                    rowHtml += `<td>${cellContent}</td>`;
                 });
-                
-                tbody.appendChild(tr);
+                rowHtml += '</tr>';
+                return rowHtml;
             });
-            
-            table.appendChild(tbody);
+
+            if (clusterize) {
+                clusterize.update(rows);
+                return;
+            }
+
             resultsContent.innerHTML = '';
+            const table = document.createElement('table');
+            table.className = 'results-table';
+            table.innerHTML = headerHtml;
+            const tbody = document.createElement('tbody');
+            tbody.id = 'clusterize-tbody';
+            table.appendChild(tbody);
             resultsContent.appendChild(table);
+
+            clusterize = new Clusterize({
+                rows: rows,
+                scrollElem: resultsContent,
+                contentElem: tbody,
+                tag: 'tr',
+                rows_in_block: 20,
+                blocks_in_cluster: 4,
+            });
         }
         
         // Display error message
         function displayError(message) {
             const resultsContent = document.getElementById('resultsContent');
             resultsContent.innerHTML = `<div class="error">❌ Error: ${message}</div>`;
+            if (clusterize) clusterize.destroy();
         }
         
         // Format large numbers (e.g., market cap, volume)
