@@ -1,4 +1,4 @@
-<![CDATA[<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -226,6 +226,31 @@
             margin-top: 20px;
         }
         
+        /* Add new styles for search bar */
+        .search-container {
+            margin-bottom: 20px;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .highlight {
+            background-color: yellow;
+            padding: 2px;
+        }
+        
         @media (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
@@ -319,7 +344,7 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="limit">Limit Results:</label>
-                        <input type="number" id="limit" value="50" min="1" max="1000">
+                        <input type="number" id="limit" value="50" min="1" max="100000">
                     </div>
                     
                     <div class="form-group">
@@ -338,6 +363,9 @@
                     <h3 id="resultsTitle">Query Results</h3>
                     <span id="resultsCount"></span>
                 </div>
+                <div class="search-container">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Search in results...">
+                </div>
                 <div id="resultsContent">
                     <!-- Results will be populated here -->
                 </div>
@@ -345,9 +373,27 @@
         </div>
     </div>
 
+    <script type="module">
+        import { create, insert, search } from 'https://cdn.jsdelivr.net/npm/@orama/orama@latest/+esm'
+        
+        // Export functions to global scope for use in main script
+        window.initializeSearch = async (schema) => {
+            return await create(schema);
+        };
+        
+        window.insertDocument = async (db, doc) => {
+            return await insert(db, doc);
+        };
+        
+        window.searchDocuments = async (db, term) => {
+            return await search(db, term);
+        };
+    </script>
     <script>
         // Global variables
         let availableMarkets = [];
+        let searchDB;
+        let currentResults = [];
         
         // Initialize the application
         document.addEventListener('DOMContentLoaded', async function() {
@@ -457,37 +503,38 @@
             
             const resultsContainer = document.getElementById('resultsContainer');
             const resultsContent = document.getElementById('resultsContent');
-            const resultsTitle = document.getElementById('resultsTitle');
-            const resultsCount = document.getElementById('resultsCount');
             
             // Show loading state
             resultsContainer.style.display = 'block';
             resultsContent.innerHTML = '<div class="loading">🔄 Executing query...</div>';
             
-            try {
-                // Collect form data
-                const formData = collectFormData();
-                
-                // Send request to API
-                const response = await fetch('/api/query', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(formData)
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    displayResults(result.data);
-                } else {
-                    displayError(result.error || 'Query execution failed');
+            // Use setTimeout to prevent UI freeze
+            setTimeout(async () => {
+                try {
+                    // Collect form data
+                    const formData = collectFormData();
+                    
+                    // Send request to API
+                    const response = await fetch('/api/query', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        await displayResults(result.data);
+                    } else {
+                        displayError(result.error || 'Query execution failed');
+                    }
+                } catch (error) {
+                    console.error('Request failed:', error);
+                    displayError('Network error: ' + error.message);
                 }
-            } catch (error) {
-                console.error('Request failed:', error);
-                displayError('Network error: ' + error.message);
-            }
+            }, 100); // Small delay to allow UI to update
         }
         
         // Collect form data
@@ -550,10 +597,11 @@
             };
         }
         
-        // Display query results
-        function displayResults(data) {
+        // Update displayResults function
+        async function displayResults(data) {
             const resultsContent = document.getElementById('resultsContent');
             const resultsCount = document.getElementById('resultsCount');
+            const searchInput = document.getElementById('searchInput');
             
             if (!data || !data.data || data.data.length === 0) {
                 resultsContent.innerHTML = '<div class="loading">No results found</div>';
@@ -561,21 +609,75 @@
                 return;
             }
             
-            // Update count
-            resultsCount.textContent = `${data.totalCount || data.data.length} results`;
+            // Store current results
+            currentResults = data.data;
             
-            // Create table
+            try {
+                // Initialize Orama search database using the global function
+                searchDB = await window.initializeSearch({
+                    schema: {
+                        id: 'string',
+                        ...Object.keys(data.data[0]).reduce((acc, key) => {
+                            acc[key] = 'string';
+                            return acc;
+                        }, {})
+                    }
+                });
+                
+                // Insert data into search database
+                for (const [index, item] of data.data.entries()) {
+                    await window.insertDocument(searchDB, {
+                        id: index.toString(),
+                        ...Object.keys(item).reduce((acc, key) => {
+                            acc[key] = String(item[key]);
+                            return acc;
+                        }, {})
+                    });
+                }
+                
+                // Create and display the table
+                renderResultsTable(data.data, data.totalCount || data.data.length);
+                
+                // Add search input listener
+                searchInput.addEventListener('input', async (e) => {
+                    const searchTerm = e.target.value.trim();
+                    if (searchTerm === '') {
+                        renderResultsTable(currentResults, currentResults.length);
+                        return;
+                    }
+                    
+                    const searchResults = await window.searchDocuments(searchDB, {
+                        term: searchTerm,
+                        limit: currentResults.length
+                    });
+                    
+                    const filteredResults = searchResults.hits.map(hit => 
+                        currentResults[parseInt(hit.document.id)]
+                    );
+                    
+                    renderResultsTable(filteredResults, filteredResults.length, searchTerm);
+                });
+            } catch (error) {
+                console.error('Search initialization error:', error);
+                // Still show results even if search fails
+                renderResultsTable(data.data, data.totalCount || data.data.length);
+            }
+        }
+        
+        // Add new function to render the results table
+        function renderResultsTable(data, totalCount, highlightTerm = '') {
+            const resultsContent = document.getElementById('resultsContent');
+            const resultsCount = document.getElementById('resultsCount');
+            
+            resultsCount.textContent = `${totalCount} results`;
+            
             const table = document.createElement('table');
             table.className = 'results-table';
             
-            // Create header
             const thead = document.createElement('thead');
             const headerRow = document.createElement('tr');
             
-            // Get column names from first result
-            const firstResult = data.data[0];
-            const columnNames = Object.keys(firstResult);
-            
+            const columnNames = Object.keys(data[0]);
             columnNames.forEach(columnName => {
                 const th = document.createElement('th');
                 th.textContent = columnName.charAt(0).toUpperCase() + columnName.slice(1).replace(/_/g, ' ');
@@ -585,25 +687,26 @@
             thead.appendChild(headerRow);
             table.appendChild(thead);
             
-            // Create body
             const tbody = document.createElement('tbody');
             
-            data.data.forEach(row => {
+            data.forEach(row => {
                 const tr = document.createElement('tr');
                 
                 columnNames.forEach(columnName => {
                     const td = document.createElement('td');
-                    const value = row[columnName];
+                    let value = row[columnName];
                     
-                    // Format value based on type
                     if (typeof value === 'number') {
                         if (columnName.includes('cap') || columnName.includes('volume')) {
-                            // Format large numbers
-                            td.textContent = formatLargeNumber(value);
+                            value = formatLargeNumber(value);
                         } else {
-                            // Format regular numbers
-                            td.textContent = value.toLocaleString();
+                            value = value.toLocaleString();
                         }
+                    }
+                    
+                    if (highlightTerm && String(value).toLowerCase().includes(highlightTerm.toLowerCase())) {
+                        const regex = new RegExp(`(${highlightTerm})`, 'gi');
+                        td.innerHTML = String(value).replace(regex, '<span class="highlight">$1</span>');
                     } else {
                         td.textContent = value || '-';
                     }
