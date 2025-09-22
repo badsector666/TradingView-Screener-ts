@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>TV Scanner • GitHub Metainfo + Orama + Virtualized</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- Orama (CDN ESM) -->
+<script type="module" id="orama-loader">
+  import { create, insert, search } from "https://cdn.jsdelivr.net/npm/@orama/orama@3.1.6/dist/index.js";
+  window.Orama = { create, insert, search };
+</script>
+<style>
+  :root { --bg:#0f1115; --fg:#e6e6e6; --muted:#9aa4b2; --line:#1f2430; --accent:#60a5fa; }
+  *{ box-sizing:border-box }
+  body{ margin:0; font:14px/1.45 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto; color:var(--fg); background:var(--bg) }
+  header{ display:grid; gap:16px; grid-template-columns:1fr 1fr; padding:20px 16px; border-bottom:1px solid var(--line); background: linear-gradient(135deg, #0f1115 0%, #141821 100%); }
+  .header-section{ display:flex; flex-direction:column; gap:12px; padding:16px; background: #141821; border:1px solid #2a3142; border-radius:12px; }
+  .section-title{ font-size:16px; font-weight:700; color:var(--accent); margin-bottom:8px; }
+  .controls-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .control-group{ display:flex; flex-direction:column; gap:6px; min-width:120px; }
+  header>div{ display:flex; flex-direction:column; gap:6px }
+  label{ font-size:12px; color:var(--muted) }
+  input,button,select{ background:#141821; color:var(--fg); border:1px solid #2a3142; border-radius:8px; padding:8px 10px }
+  button{ cursor:pointer; font-weight:600 }
+  .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+  .badge{ background:#172554; border:1px solid #1e3a8a; color:#93c5fd; padding:2px 6px; border-radius:6px; font-size:12px }
+
+  /* Dropdowns */
+  .dd{ position:relative }
+  .dd>button{ width:100%; text-align:left }
+  .panel{ position:absolute; top:100%; left:0; right:0; background:#0f121a; border:1px solid #2a3142; border-radius:10px; padding:8px; margin-top:6px; z-index:10; display:none }
+  .panel.open{ display:block }
+  .panel .search{ width:100%; margin-bottom:8px }
+  .list{ max-height:260px; overflow:auto; border:1px solid #1b2130; border-radius:8px }
+  .item{ display:flex; align-items:center; gap:8px; padding:6px 8px; border-bottom:1px solid #151b27 }
+  .item:last-child{ border-bottom:none }
+
+  /* Table / virtualization */
+  #status{ padding:8px 16px; border-bottom:1px solid var(--line); color:var(--muted) }
+  #thead{ position:sticky; top:0; background:#0f1115; z-index:2; border-bottom:1px solid var(--line) }
+  #thead .th{ font-weight:700; padding:10px; border-right:1px solid var(--line); white-space:nowrap }
+  #viewport{ height:calc(100vh - 210px); overflow:auto; position:relative }
+  #spacer{ position:relative; width:100% }
+  #rows{ position:absolute; top:0; left:0; right:0 }
+  .row-item{ display:grid; grid-template-columns:320px repeat(var(--cols,1),minmax(120px,1fr)); border-bottom:1px solid #1a1f2b; min-height:32px; align-items:center }
+  .cell{ padding:6px 10px; border-right:1px solid #1a1f2b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+  .symbol{ color:#7dd3fc; font-weight:600 }
+  .hint{ color:#9aa4b2; font-size:12px }
+</style>
+</head>
+<body>
+<header>
+  <div class="dd" id="ddMarkets">
+    <label>Markets (from GitHub metainfo)</label>
+    <button type="button" id="btnMarkets">Choose markets…</button>
+    <div class="panel" id="panelMarkets">
+      <input class="search" id="searchMarkets" placeholder="Search markets…" />
+      <div class="row">
+        <span class="badge" id="marketCount">0 selected</span>
+        <button id="loadMarkets">Load from GitHub</button>
+        <button id="refreshMarkets" title="Clear cache">Refresh</button>
+        <button id="exportCache">Export JSON</button>
+        <input type="file" id="importCache" style="display:none" />
+        <button id="importBtn">Import JSON</button>
+      </div>
+      <div class="list" id="listMarkets"></div>
+      <div class="hint" style="padding:6px 4px">Reads <code>docs/data/metainfo/*.json</code> in the repo.</div>
+    </div>
+  </div>
+
+  <div class="dd" id="ddColumns">
+    <label>Columns (auto-inferred from metainfo)</label>
+    <button type="button" id="btnColumns">Choose columns…</button>
+    <div class="panel" id="panelColumns">
+      <input class="search" id="searchColumns" placeholder="Search columns…" />
+      <div class="row">
+        <span class="badge" id="colCount">0 selected</span>
+        <button id="loadColumns">Load Columns</button>
+        <button id="refreshColumns" title="Clear selected markets’ columns">Refresh</button>
+        <select id="tfSuffix">
+          <option value="">(no timeframe suffix)</option>
+          <option value="|1">|1 (1m)</option>
+          <option value="|5">|5 (5m)</option>
+          <option value="|15">|15 (15m)</option>
+          <option value="|60">|60 (1h)</option>
+          <option value="|240">|240 (4h)</option>
+          <option value="|1D">|1D</option>
+          <option value="|1W">|1W</option>
+          <option value="|1M">|1M</option>
+        </select>
+        <button id="applySuffix">Apply to selected</button>
+      </div>
+      <div class="list" id="listColumns"></div>
+      <div class="hint" style="padding:6px 4px">Metainfo fields: <code>{ n, t, r }</code>. We use <code>n</code> as column key; optional timeframe suffix adds <code>|TF</code>.</div>
+    </div>
+  </div>
+
+  <div>
+    <label>Sort By</label>
+    <input id="sortBy" value="name" />
+    <label style="margin-top:6px">Sort Order</label>
+    <select id="sortOrder"><option>asc</option><option>desc</option></select>
+  </div>
+
+  <div>
+    <label>Batch size</label>
+    <input id="batch" type="number" min="100" max="5000" step="100" value="5000" />
+    <div class="row"><span class="badge" id="countBadge">Rows: 0</span>
+      <span class="badge" id="loadedBadge">Loaded: 0</span></div>
+  </div>
+
+  <div class="row" style="grid-column: span 2; align-self:end;">
+    <button id="fetch" style="background: var(--accent); border-color: var(--accent); font-weight: 700; padding: 12px 24px;">🚀 Fetch & Render</button>
+    <button id="stop" style="background: #dc2626; border-color: #dc2626; padding: 12px 24px;">⏹️ Stop</button>
+  </div>
+</header>
+
+<div id="status">Idle.</div>
+
+<!-- Search bar for table data -->
+<div id="table-search-container" style="padding: 12px 16px; border-bottom: 1px solid var(--line); background: #141821;">
+  <div style="display: flex; gap: 12px; align-items: center;">
+    <label style="font-size: 12px; color: var(--muted); white-space: nowrap;">Search Table:</label>
+    <input id="tableSearch" placeholder="Search symbols and data..." style="flex: 1; background: #0f1115; border: 1px solid #2a3142; border-radius: 8px; padding: 8px 12px; color: var(--fg);" />
+    <button id="clearSearch" style="padding: 8px 12px; background: #1f2937; border: 1px solid #374151; border-radius: 6px; color: var(--muted); cursor: pointer;">Clear</button>
+    <span id="searchResults" class="badge" style="background: #1e3a8a; color: #93c5fd;">Showing all</span>
+  </div>
+</div>
+
+<!-- Table header -->
+<div id="thead" class="row-item" style="--cols: 0">
+  <div class="th cell">s (symbol)</div>
+  <div id="th-cols" class="row cell" style="display:contents;"></div>
+</div>
+
+<!-- Virtualized viewport -->
+<div id="viewport"><div id="spacer" style="height:0px;"><div id="rows"></div></div></div>
+
+<script type="module">
+  const $ = id => document.getElementById(id);
+  const state = {
+    stop:false, rows:[], filteredRows:[], rowHeight:32, buffer:8, total:0, loaded:0,
+    selectedMarkets:new Set(), selectedColumns:new Set(),
+    cacheKey:"tv_meta_cache_v1",
+    cache:{ markets:[], columnsByMarket:{}, discoveredAt:null },
+    searchQuery: ""
+  };
+
+  const ui = {
+    marketItems: [],   // [{id,label}]
+    columnItems: []    // [{id,label}]
+  };
+
+  const debounce = (fn, ms = 200) => {
+    let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  };
+
+  function filterItems(items, q) {
+    if (!q) return items;
+    const term = q.trim().toLowerCase();
+    return items.filter(it =>
+      it.label.toLowerCase().includes(term) || it.id.toLowerCase().includes(term)
+    );
+  }
+
+  // Map GitHub metainfo files -> “market” ids to use in TV scanner
+  const META = {
+    bond: "bond.json",
+    bonds: "bonds.json",
+    cfd: "cfd.json",
+    coin: "coin.json",
+    crypto: "crypto.json",
+    economics2: "economics2.json",
+    forex: "forex.json",
+    futures: "futures.json",
+    ireland: "ireland.json",
+    options: "options.json",
+    stocks: "stocks.json"
+  };
+  const GH_BASE = "https://raw.githubusercontent.com/shner-elmo/TradingView-Screener/docs/data/metainfo/";
+
+  // Dropdown open/close
+  const ddHook = (btn, panel) => {
+    btn.addEventListener("click", () => panel.classList.toggle("open"));
+    document.addEventListener("click", (e) => { if(!panel.contains(e.target) && e.target!==btn) panel.classList.remove("open"); });
+  };
+  ddHook($("btnMarkets"), $("panelMarkets"));
+  ddHook($("btnColumns"), $("panelColumns"));
+
+  // Cache
+  function saveCache(){ state.cache.discoveredAt = new Date().toISOString(); localStorage.setItem(state.cacheKey, JSON.stringify(state.cache)); }
+  function loadCache(){ try{ const raw=localStorage.getItem(state.cacheKey); if(raw) state.cache = JSON.parse(raw); }catch{} }
+
+  // Orama
+  let dbMarkets, dbColumns;
+  async function buildIndex(items){
+    const db = await Orama.create({ schema:{ id:"string", label:"string" } });
+    for(const it of items) await Orama.insert(db, it);
+    return db;
+  }
+
+  function setStatus(s){ $("status").textContent=s; }
+  function updateBadges(){
+    $("marketCount").textContent = `${state.selectedMarkets.size} selected`;
+    $("colCount").textContent = `${state.selectedColumns.size} selected`;
+    $("countBadge").textContent = `Rows: ${state.total}`;
+    $("loadedBadge").textContent = `Loaded: ${state.loaded}`;
+    updateSearchResults();
+  }
+
+  function updateSearchResults(){
+    const showing = state.filteredRows.length;
+    const total = state.rows.length;
+    if(state.searchQuery.trim()) {
+      $("searchResults").textContent = `Showing ${showing} of ${total}`;
+    } else {
+      $("searchResults").textContent = `Showing all`;
+    }
+  }
+
+  function filterRows(){
+    const query = state.searchQuery.trim().toLowerCase();
+    if(!query) {
+      state.filteredRows = state.rows;
+    } else {
+      state.filteredRows = state.rows.filter(row => {
+        // Search in symbol
+        if(row.s && row.s.toLowerCase().includes(query)) return true;
+        
+        // Search in data columns
+        if(Array.isArray(row.d)) {
+          return row.d.some(cell => 
+            cell && cell.toString().toLowerCase().includes(query)
+          );
+        }
+        return false;
+      });
+    }
+    setContainerHeight();
+    renderRows();
+    updateSearchResults();
+  }
+
+  function renderCheckList(container, items, selectedSet){
+  const frag = document.createDocumentFragment();
+  for(const it of items){
+    const row = document.createElement("label");
+    row.className = "item";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = selectedSet.has(it.id);
+    cb.addEventListener("change", () => {
+      if (cb.checked) selectedSet.add(it.id);
+      else selectedSet.delete(it.id);
+      updateBadges();
+    });
+    const span = document.createElement("span");
+    span.textContent = it.label;
+    row.append(cb, span);
+    frag.appendChild(row);
+  }
+  container.replaceChildren(frag);
+}
+
+  async function hydrateMarketsUI(){
+  ui.marketItems = (state.cache.markets || []).map(m => ({ id: m, label: m }));
+  renderCheckList($("listMarkets"), ui.marketItems, state.selectedMarkets);
+  updateBadges();
+}
+
+async function hydrateColumnsUI(){
+  const uni = new Set();
+  for (const m of state.selectedMarkets) {
+    (state.cache.columnsByMarket[m] || []).forEach(c => uni.add(c));
+  }
+  ui.columnItems = [...uni].sort((a,b)=>a.localeCompare(b)).map(c => ({ id: c, label: c }));
+  renderCheckList($("listColumns"), ui.columnItems, state.selectedColumns);
+  updateBadges();
+}
+
+  // Load markets: just the keys from META that actually fetch successfully
+  async function loadMarketsFromGitHub(){
+    setStatus("Loading markets from GitHub metainfo…");
+    const found = [];
+    for(const m of Object.keys(META)){
+      try{
+        const url = GH_BASE + META[m];
+        const res = await fetch(url);
+        if(res.ok){ found.push(m); }
+      }catch{}
+      await new Promise(r=>setTimeout(r,0));
+    }
+    state.cache.markets = found.sort();
+    saveCache();
+    await hydrateMarketsUI();
+    setStatus(`Markets ready: ${state.cache.markets.join(", ")}`);
+  }
+
+  // Load columns for selected markets by reading {n,t,r} array and collecting n
+  async function loadColumnsForSelected(){
+    if(state.selectedMarkets.size===0){ setStatus("Select at least one market first."); return; }
+    setStatus("Loading columns from GitHub metainfo…");
+    for(const m of state.selectedMarkets){
+      try{
+        const url = GH_BASE + META[m];
+        const arr = await fetch(url).then(r=>r.json());
+        // Expect array of objects with "n" (name), "t" (type), "r" (range or null)
+        const names = [];
+        for(const it of arr){
+          if(it && typeof it.n === "string" && it.n.trim()) names.push(it.n.trim());
+        }
+        // dedupe and sort
+        state.cache.columnsByMarket[m] = [...new Set(names)].sort();
+      }catch(e){
+        console.warn("Failed loading columns for", m, e);
+      }
+      await new Promise(r=>setTimeout(r,0));
+    }
+    saveCache();
+    await hydrateColumnsUI();
+    setStatus("Columns loaded.");
+  }
+
+  // Search handlers
+  $("searchMarkets").addEventListener("input", debounce(e => {
+  const q = e.target.value;
+  const filtered = filterItems(ui.marketItems, q);
+  renderCheckList($("listMarkets"), filtered, state.selectedMarkets);
+}));
+  $("searchColumns").addEventListener("input", debounce(e => {
+  const q = e.target.value;
+  const filtered = filterItems(ui.columnItems, q);
+  renderCheckList($("listColumns"), filtered, state.selectedColumns);
+}));
+
+  // Apply timeframe suffix to selected columns (e.g., close -> close|60)
+  $("applySuffix").addEventListener("click", ()=>{
+    const suffix = $("tfSuffix").value || "";
+    if(!suffix) return;
+    const augmented = new Set();
+    for(const c of state.selectedColumns) augmented.add(c + suffix);
+    state.selectedColumns = augmented;
+    updateBadges(); renderHeader();
+  });
+
+  // Virtualized table
+  const $viewport=$("viewport"), $spacer=$("spacer"), $rows=$("rows"), $thCols=$("th-cols");
+  function renderHeader(){
+    $thCols.innerHTML = "";
+    document.documentElement.style.setProperty("--cols", state.selectedColumns.size);
+    for(const c of state.selectedColumns){
+      const div = document.createElement("div"); div.className="th cell"; div.textContent=c;
+      $thCols.appendChild(div);
+    }
+  }
+  function setContainerHeight(){ $spacer.style.height = (state.filteredRows.length*state.rowHeight)+"px"; }
+  function visibleRange(){
+    const scrollTop=$viewport.scrollTop, vh=$viewport.clientHeight;
+    const start=Math.max(0,Math.floor(scrollTop/state.rowHeight)-state.buffer);
+    const end=Math.min(state.filteredRows.length,Math.ceil((scrollTop+vh)/state.rowHeight)+state.buffer);
+    return {start,end,offsetTop:start*state.rowHeight};
+  }
+  function renderRows(){
+    const { start, end, offsetTop } = visibleRange();
+    $rows.style.transform = `translateY(${offsetTop}px)`;
+    const frag = document.createDocumentFragment();
+    for(let i=start;i<end;i++){
+      const item = state.filteredRows[i]; if(!item) continue;
+      const row = document.createElement("div"); row.className="row-item";
+      const c0 = document.createElement("div"); c0.className="cell symbol"; c0.textContent=item.s; row.appendChild(c0);
+      const d = Array.isArray(item.d)? item.d : [];
+      let j=0; for(const _c of state.selectedColumns){ const cell=document.createElement("div"); cell.className="cell"; cell.textContent = d[j++]; row.appendChild(cell); }
+      frag.appendChild(row);
+    }
+    $rows.replaceChildren(frag);
+  }
+  $viewport.addEventListener("scroll", renderRows);
+  window.addEventListener("resize", renderRows);
+
+  // TradingView fetch (simple request: no headers)
+  async function fetchChunk({ market, columns, sortBy, sortOrder, start, end }){
+    const body = { symbols:{ query:{ types:[] }, tickers:[] }, columns, sort:{ sortBy, sortOrder }, range:[start,end] };
+    const res = await fetch(`https://scanner.tradingview.com/${market}/scan`, { method:"POST", body: JSON.stringify(body) });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
+  async function fetchAll(){
+    state.stop=false;
+    const markets = [...state.selectedMarkets];
+    if(markets.length===0) return setStatus("Select at least one market.");
+    const columns = [...state.selectedColumns];
+    if(columns.length===0) return setStatus("Select at least one column.");
+
+    state.rows=[]; state.filteredRows=[]; state.total=0; state.loaded=0;
+    renderHeader(); updateBadges(); setContainerHeight(); renderRows();
+
+    const sortBy = $("sortBy").value.trim() || "name";
+    const sortOrder = $("sortOrder").value === "desc" ? "desc" : "asc";
+    const batch = Math.max(100, Math.min(5000, parseInt($("batch").value||"5000",10)));
+
+    for(const market of markets){
+      setStatus(`Loading ${market}…`);
+      let start=0, end=start+batch;
+      let first;
+      try{ first = await fetchChunk({ market, columns, sortBy, sortOrder, start, end }); }
+      catch(e){ setStatus(`Failed ${market}: ${e.message}`); continue; }
+
+      state.total = (state.total||0) + (first.totalCount ?? first.data.length);
+      state.rows = state.rows.concat(first.data);
+      state.loaded = state.rows.length; 
+      filterRows(); updateBadges();
+
+      while(!state.stop && state.rows.length < state.total){
+        start = state.rows.length; end = Math.min(state.total, start + batch);
+        try{
+          const chunk = await fetchChunk({ market, columns, sortBy, sortOrder, start, end });
+          state.rows = state.rows.concat(chunk.data);
+          state.loaded = state.rows.length; 
+          filterRows(); updateBadges();
+          await new Promise(r=>setTimeout(r,0));
+        }catch(e){ setStatus(`Stopped on error: ${e.message}`); break; }
+      }
+    }
+    setStatus(state.stop ? "Stopped." : `Done. Loaded ${state.loaded} rows across ${markets.length} market(s).`);
+  }
+
+  // Events
+  $("loadMarkets").addEventListener("click", loadMarketsFromGitHub);
+  $("refreshMarkets").addEventListener("click", ()=>{ state.cache.markets=[]; saveCache(); hydrateMarketsUI(); setStatus("Markets cache cleared."); });
+  $("loadColumns").addEventListener("click", loadColumnsForSelected);
+  $("refreshColumns").addEventListener("click", ()=>{ for(const m of state.selectedMarkets) delete state.cache.columnsByMarket[m]; saveCache(); hydrateColumnsUI(); setStatus("Columns cache cleared for selected markets."); });
+
+  $("fetch").addEventListener("click", fetchAll);
+  $("stop").addEventListener("click", ()=>{ state.stop=true; });
+
+  // export/import cache
+  $("exportCache").addEventListener("click", ()=>{
+    const blob = new Blob([JSON.stringify(state.cache,null,2)], {type:"application/json"});
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "tv_meta_cache.json"; a.click(); URL.revokeObjectURL(a.href);
+  });
+  $("importBtn").addEventListener("click", ()=>$("importCache").click());
+  $("importCache").addEventListener("change", async (e)=>{
+    const file = e.target.files?.[0]; if(!file) return;
+    try{
+      const txt = await file.text(); const data = JSON.parse(txt);
+      if(data?.markets && data?.columnsByMarket){ state.cache = data; saveCache(); await hydrateMarketsUI(); await hydrateColumnsUI(); setStatus("Cache imported."); }
+      else setStatus("Invalid JSON.");
+    }catch{ setStatus("Import failed."); }
+  });
+
+  // Table search functionality
+  $("tableSearch").addEventListener("input", debounce(e => {
+    state.searchQuery = e.target.value;
+    filterRows();
+  }));
+  
+  $("clearSearch").addEventListener("click", () => {
+    $("tableSearch").value = "";
+    state.searchQuery = "";
+    filterRows();
+  });
+
+  // Boot
+  loadCache();
+  hydrateMarketsUI();
+  updateBadges();
+  setStatus("Ready. Load markets from GitHub, select markets, then load columns.");
+</script>
+</body>
+</html>
