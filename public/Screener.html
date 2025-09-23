@@ -118,6 +118,7 @@
 <div class="controls-row" style="padding: 10px 16px; border-bottom: 1px solid var(--line); justify-content: center; gap: 16px;">
     <button id="fetch" style="background: var(--accent); border-color: var(--accent); font-weight: 700; padding: 12px 24px;">🚀 Fetch & Render</button>
     <button id="stop" style="background: #dc2626; border-color: #dc2626; padding: 12px 24px;">⏹️ Stop</button>
+    <button id="exportResults" style="background: #3b82f6; border-color: #3b82f6; padding: 12px 24px;">📤 Export Results</button>
 </div>
 
 <div id="status">Idle.</div>
@@ -437,23 +438,84 @@
     return {start,end,offsetTop:start*state.rowHeight};
   }
   function renderRows(){
-    const { start, end, offsetTop } = visibleRange();
-    $rows.style.transform = `translateY(${offsetTop}px)`;
-    const frag = document.createDocumentFragment();
-    for(let i=start;i<end;i++){
-      const item = state.filteredRows[i]; if(!item) continue;
-      const row = document.createElement("div"); 
-      row.className="row-item";
-      row.style.gridTemplateColumns = $thead.style.gridTemplateColumns;
-      const c0 = document.createElement("div"); c0.className="cell symbol"; c0.textContent=item.s; row.appendChild(c0);
-      const d = Array.isArray(item.d)? item.d : [];
-      let j=0; for(const _c of state.selectedColumns){ const cell=document.createElement("div"); cell.className="cell"; cell.textContent = d[j++]; row.appendChild(cell); }
-      frag.appendChild(row);
+      const { start, end, offsetTop } = visibleRange();
+      $rows.style.transform = `translateY(${offsetTop}px)`;
+      const frag = document.createDocumentFragment();
+      for(let i=start;i<end;i++){
+        const item = state.filteredRows[i]; if(!item) continue;
+        const row = document.createElement("div");
+        row.className="row-item";
+        row.style.gridTemplateColumns = $thead.style.gridTemplateColumns;
+        const c0 = document.createElement("div"); c0.className="cell symbol"; c0.textContent=item.s; row.appendChild(c0);
+        const d = Array.isArray(item.d)? item.d : [];
+        let j=0; for(const _c of state.selectedColumns){ const cell=document.createElement("div"); cell.className="cell"; cell.textContent = d[j++]; row.appendChild(cell); }
+        frag.appendChild(row);
+      }
+      $rows.replaceChildren(frag);
     }
-    $rows.replaceChildren(frag);
-  }
-  $viewport.addEventListener("scroll", renderRows);
-  window.addEventListener("resize", renderRows);
+    $viewport.addEventListener("scroll", renderRows);
+    window.addEventListener("resize", renderRows);
+  
+    // Export functionality
+    function exportResults(format) {
+      if (state.filteredRows.length === 0) {
+        setStatus("No data to export.");
+        return;
+      }
+  
+      const columns = ["s", ...state.selectedColumns];
+      let content = "";
+      let filename = "";
+  
+      if (format === "csv") {
+        // Create CSV header
+        content += columns.join(",") + "\n";
+  
+        // Add data rows
+        state.filteredRows.forEach(row => {
+          const rowData = [row.s, ...(row.d || [])];
+          content += rowData.map(item => `"${item}"`).join(",") + "\n";
+        });
+  
+        filename = "filtered_results.csv";
+      } else if (format === "json") {
+        // Create JSON data
+        const jsonData = state.filteredRows.map(row => {
+          const rowObj = { s: row.s };
+          state.selectedColumns.forEach((col, index) => {
+            rowObj[col] = row.d ? row.d[index] : "";
+          });
+          return rowObj;
+        });
+  
+        content = JSON.stringify(jsonData, null, 2);
+        filename = "filtered_results.json";
+      }
+  
+      // Create download link
+      const blob = new Blob([content], { type: format === "csv" ? "text/csv" : "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+  
+      setStatus(`Exported ${state.filteredRows.length} rows as ${format.toUpperCase()}.`);
+    }
+  
+    // Event listener for export button
+    $("exportResults").addEventListener("click", () => {
+      // Show a simple dialog to choose format
+      const format = prompt("Choose export format (csv/json):", "csv");
+      if (format && (format.toLowerCase() === "csv" || format.toLowerCase() === "json")) {
+        exportResults(format.toLowerCase());
+      } else {
+        setStatus("Invalid format. Please choose 'csv' or 'json'.");
+      }
+    });
 
   // TradingView fetch (simple request: no headers)
   async function fetchChunk({ market, columns, sortBy, sortOrder, start, end }){
