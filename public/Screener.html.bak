@@ -37,13 +37,9 @@
 
   /* Table / virtualization */
   #status{ padding:8px 16px; border-bottom:1px solid var(--line); color:var(--muted) }
-  #thead-container{ position:sticky; top:0; z-index:2; background:var(--bg); }
-  #thead{ border-bottom:1px solid var(--line) }
+  #thead{ position:sticky; top:0; background:#0f1115; z-index:2; border-bottom:1px solid var(--line) }
   #thead .th{ font-weight:700; padding:10px; border-right:1px solid var(--line); white-space:nowrap }
-  #filter-row { border-bottom:1px solid var(--line); }
-  #filter-row .cell { padding: 4px; }
-  #filter-row input { width: 100%; background: #0f1115; border: 1px solid #2a3142; color: var(--fg); padding: 6px 8px; border-radius: 6px; }
-  #viewport{ height:calc(100vh - 300px); overflow:auto; position:relative }
+  #viewport{ height:calc(100vh - 210px); overflow:auto; position:relative }
   #spacer{ position:relative; width:100% }
   #rows{ position:absolute; top:0; left:0; right:0 }
   .row-item{ display:grid; grid-template-columns:320px repeat(var(--cols,1),minmax(120px,1fr)); border-bottom:1px solid #1a1f2b; min-height:32px; align-items:center }
@@ -102,7 +98,7 @@
 
   <div>
     <label>Sort By</label>
-    <select id="sortBy"></select>
+    <input id="sortBy" value="name" />
     <label style="margin-top:6px">Sort Order</label>
     <select id="sortOrder"><option>asc</option><option>desc</option></select>
   </div>
@@ -113,33 +109,29 @@
     <div class="row"><span class="badge" id="countBadge">Rows: 0</span>
       <span class="badge" id="loadedBadge">Loaded: 0</span></div>
   </div>
-</header>
 
-<div class="controls-row" style="padding: 10px 16px; border-bottom: 1px solid var(--line); justify-content: center; gap: 16px;">
+  <div class="row" style="grid-column: span 2; align-self:end;">
     <button id="fetch" style="background: var(--accent); border-color: var(--accent); font-weight: 700; padding: 12px 24px;">🚀 Fetch & Render</button>
     <button id="stop" style="background: #dc2626; border-color: #dc2626; padding: 12px 24px;">⏹️ Stop</button>
-</div>
+  </div>
+</header>
 
 <div id="status">Idle.</div>
 
 <!-- Search bar for table data -->
 <div id="table-search-container" style="padding: 12px 16px; border-bottom: 1px solid var(--line); background: #141821;">
   <div style="display: flex; gap: 12px; align-items: center;">
-    <label style="font-size: 12px; color: var(--muted); white-space: nowrap;">Global Search:</label>
-    <input id="tableSearch" placeholder="Search all columns..." style="flex: 1; background: #0f1115; border: 1px solid #2a3142; border-radius: 8px; padding: 8px 12px; color: var(--fg);" />
+    <label style="font-size: 12px; color: var(--muted); white-space: nowrap;">Search Table:</label>
+    <input id="tableSearch" placeholder="Search symbols and data..." style="flex: 1; background: #0f1115; border: 1px solid #2a3142; border-radius: 8px; padding: 8px 12px; color: var(--fg);" />
     <button id="clearSearch" style="padding: 8px 12px; background: #1f2937; border: 1px solid #374151; border-radius: 6px; color: var(--muted); cursor: pointer;">Clear</button>
     <span id="searchResults" class="badge" style="background: #1e3a8a; color: #93c5fd;">Showing all</span>
   </div>
 </div>
 
 <!-- Table header -->
-<div id="thead-container">
-  <div id="thead" class="row-item" style="--cols: 0">
-    <div class="th cell">s (symbol)</div>
-  </div>
-  <div id="filter-row" class="row-item" style="--cols: 0">
-    <div class="cell"><input class="col-filter" placeholder="Filter..." data-col-idx="-1" /></div>
-  </div>
+<div id="thead" class="row-item" style="--cols: 0">
+  <div class="th cell">s (symbol)</div>
+  <div id="th-cols" class="row cell" style="display:contents;"></div>
 </div>
 
 <!-- Virtualized viewport -->
@@ -152,8 +144,7 @@
     selectedMarkets:new Set(), selectedColumns:new Set(),
     cacheKey:"tv_meta_cache_v1",
     cache:{ markets:[], columnsByMarket:{}, discoveredAt:null },
-    searchQuery: "",
-    columnFilters: {} // { colIndex: "filter string" }
+    searchQuery: ""
   };
 
   const ui = {
@@ -221,10 +212,7 @@
   function updateSearchResults(){
     const showing = state.filteredRows.length;
     const total = state.rows.length;
-    const hasGlobalSearch = state.searchQuery.trim();
-    const hasColFilters = Object.values(state.columnFilters).some(f => f.trim());
-
-    if(hasGlobalSearch || hasColFilters) {
+    if(state.searchQuery.trim()) {
       $("searchResults").textContent = `Showing ${showing} of ${total}`;
     } else {
       $("searchResults").textContent = `Showing all`;
@@ -232,35 +220,21 @@
   }
 
   function filterRows(){
-    const globalQuery = state.searchQuery.trim().toLowerCase();
-    const colFilters = Object.entries(state.columnFilters)
-      .map(([idx, q]) => [parseInt(idx, 10), q.trim().toLowerCase()])
-      .filter(([, q]) => q);
-
-    if(!globalQuery && colFilters.length === 0) {
+    const query = state.searchQuery.trim().toLowerCase();
+    if(!query) {
       state.filteredRows = state.rows;
     } else {
       state.filteredRows = state.rows.filter(row => {
-        // Column filters
-        for (const [idx, q] of colFilters) {
-          const cellValue = idx === -1 ? row.s : (row.d && row.d[idx]);
-          if (!cellValue || !cellValue.toString().toLowerCase().includes(q)) {
-            return false;
-          }
-        }
-
-        // Global search (if all column filters passed)
-        if (globalQuery) {
-          if(row.s && row.s.toLowerCase().includes(globalQuery)) return true;
-          if(Array.isArray(row.d)) {
-            return row.d.some(cell => 
-              cell && cell.toString().toLowerCase().includes(globalQuery)
-            );
-          }
-          return false; // No match in global search
-        }
+        // Search in symbol
+        if(row.s && row.s.toLowerCase().includes(query)) return true;
         
-        return true; // All column filters passed, no global search
+        // Search in data columns
+        if(Array.isArray(row.d)) {
+          return row.d.some(cell => 
+            cell && cell.toString().toLowerCase().includes(query)
+          );
+        }
+        return false;
       });
     }
     setContainerHeight();
@@ -268,54 +242,42 @@
     updateSearchResults();
   }
 
-  function renderCheckList(container, items, selectedSet, isColumns = false){
-    const frag = document.createDocumentFragment();
-    for(const it of items){
-      const row = document.createElement("label");
-      row.className = "item";
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.checked = selectedSet.has(it.id);
-      cb.addEventListener("change", () => {
-        if (cb.checked) selectedSet.add(it.id);
-        else selectedSet.delete(it.id);
-        updateBadges();
-        if (isColumns) {
-          renderHeader();
-        } else {
-          // When markets change, we need to reload columns
-          hydrateColumnsUI();
-        }
-      });
-      const span = document.createElement("span");
-      span.textContent = it.label;
-      row.append(cb, span);
-      frag.appendChild(row);
-    }
-    container.replaceChildren(frag);
+  function renderCheckList(container, items, selectedSet){
+  const frag = document.createDocumentFragment();
+  for(const it of items){
+    const row = document.createElement("label");
+    row.className = "item";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = selectedSet.has(it.id);
+    cb.addEventListener("change", () => {
+      if (cb.checked) selectedSet.add(it.id);
+      else selectedSet.delete(it.id);
+      updateBadges();
+    });
+    const span = document.createElement("span");
+    span.textContent = it.label;
+    row.append(cb, span);
+    frag.appendChild(row);
   }
+  container.replaceChildren(frag);
+}
 
   async function hydrateMarketsUI(){
-    ui.marketItems = (state.cache.markets || []).map(m => ({ id: m, label: m }));
-    renderCheckList($("listMarkets"), ui.marketItems, state.selectedMarkets, false);
-    updateBadges();
-  }
+  ui.marketItems = (state.cache.markets || []).map(m => ({ id: m, label: m }));
+  renderCheckList($("listMarkets"), ui.marketItems, state.selectedMarkets);
+  updateBadges();
+}
 
-  async function hydrateColumnsUI(){
-    const uni = new Set();
-    for (const m of state.selectedMarkets) {
-      (state.cache.columnsByMarket[m] || []).forEach(c => uni.add(c));
-    }
-    ui.columnItems = [...uni].sort((a,b)=>a.localeCompare(b)).map(c => ({ id: c, label: c }));
-    
-    // Filter out columns that are no longer valid
-    const validCols = new Set(ui.columnItems.map(i => i.id));
-    state.selectedColumns = new Set([...state.selectedColumns].filter(c => validCols.has(c)));
-
-    renderCheckList($("listColumns"), ui.columnItems, state.selectedColumns, true);
-    updateBadges();
-    renderHeader(); // Update header when columns change
+async function hydrateColumnsUI(){
+  const uni = new Set();
+  for (const m of state.selectedMarkets) {
+    (state.cache.columnsByMarket[m] || []).forEach(c => uni.add(c));
   }
+  ui.columnItems = [...uni].sort((a,b)=>a.localeCompare(b)).map(c => ({ id: c, label: c }));
+  renderCheckList($("listColumns"), ui.columnItems, state.selectedColumns);
+  updateBadges();
+}
 
   // Load markets: just the keys from META that actually fetch successfully
   async function loadMarketsFromGitHub(){
@@ -340,7 +302,6 @@
     if(state.selectedMarkets.size===0){ setStatus("Select at least one market first."); return; }
     setStatus("Loading columns from GitHub metainfo…");
     for(const m of state.selectedMarkets){
-      if (state.cache.columnsByMarket[m]) continue; // Skip if already loaded
       try{
         const url = GH_BASE + META[m];
         const arr = await fetch(url).then(r=>r.json());
@@ -358,77 +319,41 @@
     }
     saveCache();
     await hydrateColumnsUI();
-    setStatus("Columns loaded for selected markets.");
+    setStatus("Columns loaded.");
   }
 
   // Search handlers
   $("searchMarkets").addEventListener("input", debounce(e => {
-    const q = e.target.value;
-    const filtered = filterItems(ui.marketItems, q);
-    renderCheckList($("listMarkets"), filtered, state.selectedMarkets, false);
-  }));
+  const q = e.target.value;
+  const filtered = filterItems(ui.marketItems, q);
+  renderCheckList($("listMarkets"), filtered, state.selectedMarkets);
+}));
   $("searchColumns").addEventListener("input", debounce(e => {
-    const q = e.target.value;
-    const filtered = filterItems(ui.columnItems, q);
-    renderCheckList($("listColumns"), filtered, state.selectedColumns, true);
-  }));
+  const q = e.target.value;
+  const filtered = filterItems(ui.columnItems, q);
+  renderCheckList($("listColumns"), filtered, state.selectedColumns);
+}));
 
   // Apply timeframe suffix to selected columns (e.g., close -> close|60)
   $("applySuffix").addEventListener("click", ()=>{
     const suffix = $("tfSuffix").value || "";
     if(!suffix) return;
     const augmented = new Set();
-    for(const c of state.selectedColumns) augmented.add(c.split('|')[0] + suffix);
+    for(const c of state.selectedColumns) augmented.add(c + suffix);
     state.selectedColumns = augmented;
-    hydrateColumnsUI();
+    updateBadges(); renderHeader();
   });
 
   // Virtualized table
-  const $viewport=$("viewport"), $spacer=$("spacer"), $rows=$("rows"), $thead=$("thead"), $filterRow=$("filter-row");
-  
+  const $viewport=$("viewport"), $spacer=$("spacer"), $rows=$("rows"), $thCols=$("th-cols");
   function renderHeader(){
-    const cols = [...state.selectedColumns];
-    const sortBy = $("sortBy");
-    const currentSort = sortBy.value;
-    
-    $thead.innerHTML = '<div class="th cell">s (symbol)</div>';
-    $filterRow.innerHTML = '<div class="cell"><input class="col-filter" placeholder="Filter..." data-col-idx="-1" /></div>';
-    
-    const gridTemplateColumns = `320px repeat(${cols.length}, minmax(120px, 1fr))`;
-    $thead.style.gridTemplateColumns = gridTemplateColumns;
-    $filterRow.style.gridTemplateColumns = gridTemplateColumns;
-    document.documentElement.style.setProperty("--cols", cols.length);
-
-    sortBy.innerHTML = '<option value="name">name</option>';
-    for(const c of cols){
-      const opt = document.createElement("option");
-      opt.value = c;
-      opt.textContent = c;
-      sortBy.appendChild(opt);
+    $thCols.innerHTML = "";
+    document.documentElement.style.setProperty("--cols", state.selectedColumns.size);
+    for(const c of state.selectedColumns){
+      const div = document.createElement("div"); div.className="th cell"; div.textContent=c;
+      $thCols.appendChild(div);
     }
-    if (currentSort && (cols.includes(currentSort) || currentSort === 'name')) {
-      sortBy.value = currentSort;
-    } else {
-      sortBy.value = "name";
-    }
-
-    cols.forEach((c, i) => {
-      const th = document.createElement("div");
-      th.className="th cell";
-      th.textContent=c;
-      $thead.appendChild(th);
-
-      const filterCell = document.createElement("div");
-      filterCell.className = "cell";
-      const input = document.createElement("input");
-      input.className = "col-filter";
-      input.placeholder = `Filter...`;
-      input.dataset.colIdx = i;
-      filterCell.appendChild(input);
-      $filterRow.appendChild(filterCell);
-    });
   }
-  
   function setContainerHeight(){ $spacer.style.height = (state.filteredRows.length*state.rowHeight)+"px"; }
   function visibleRange(){
     const scrollTop=$viewport.scrollTop, vh=$viewport.clientHeight;
@@ -442,9 +367,7 @@
     const frag = document.createDocumentFragment();
     for(let i=start;i<end;i++){
       const item = state.filteredRows[i]; if(!item) continue;
-      const row = document.createElement("div"); 
-      row.className="row-item";
-      row.style.gridTemplateColumns = $thead.style.gridTemplateColumns;
+      const row = document.createElement("div"); row.className="row-item";
       const c0 = document.createElement("div"); c0.className="cell symbol"; c0.textContent=item.s; row.appendChild(c0);
       const d = Array.isArray(item.d)? item.d : [];
       let j=0; for(const _c of state.selectedColumns){ const cell=document.createElement("div"); cell.className="cell"; cell.textContent = d[j++]; row.appendChild(cell); }
@@ -478,7 +401,6 @@
     const batch = Math.max(100, Math.min(5000, parseInt($("batch").value||"5000",10)));
 
     for(const market of markets){
-      if (state.stop) break;
       setStatus(`Loading ${market}…`);
       let start=0, end=start+batch;
       let first;
@@ -506,7 +428,7 @@
 
   // Events
   $("loadMarkets").addEventListener("click", loadMarketsFromGitHub);
-  $("refreshMarkets").addEventListener("click", ()=>{ state.cache.markets=[]; state.cache.columnsByMarket={}; saveCache(); hydrateMarketsUI(); setStatus("Markets cache cleared."); });
+  $("refreshMarkets").addEventListener("click", ()=>{ state.cache.markets=[]; saveCache(); hydrateMarketsUI(); setStatus("Markets cache cleared."); });
   $("loadColumns").addEventListener("click", loadColumnsForSelected);
   $("refreshColumns").addEventListener("click", ()=>{ for(const m of state.selectedMarkets) delete state.cache.columnsByMarket[m]; saveCache(); hydrateColumnsUI(); setStatus("Columns cache cleared for selected markets."); });
 
@@ -537,24 +459,12 @@
   $("clearSearch").addEventListener("click", () => {
     $("tableSearch").value = "";
     state.searchQuery = "";
-    document.querySelectorAll('.col-filter').forEach(input => input.value = '');
-    state.columnFilters = {};
     filterRows();
   });
-
-  // Column filter functionality
-  $("thead-container").addEventListener("input", debounce(e => {
-    if (e.target.classList.contains("col-filter")) {
-      const idx = e.target.dataset.colIdx;
-      state.columnFilters[idx] = e.target.value;
-      filterRows();
-    }
-  }, 250));
 
   // Boot
   loadCache();
   hydrateMarketsUI();
-  renderHeader();
   updateBadges();
   setStatus("Ready. Load markets from GitHub, select markets, then load columns.");
 </script>
