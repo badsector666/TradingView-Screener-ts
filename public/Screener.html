@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <!-- Orama (CDN ESM) -->
 <script type="module" id="orama-loader">
-  import { create, insert, search } from "https://cdn.jsdelivr.net/npm/@orama/orama@3.1.6/dist/index.js";
+  import { create, insert, search } from "https://cdn.jsdelivr.net/npm/@orama/orama@latest/+esm";
   window.Orama = { create, insert, search };
 </script>
 <style>
@@ -509,7 +509,7 @@
     // Event listener for export button
     $("exportResults").addEventListener("click", () => {
       // Show a simple dialog to choose format
-      const format = prompt("Choose export format (csv/json):", "csv");
+      const format = prompt("Choose export format (csv/json):", "json");
       if (format && (format.toLowerCase() === "csv" || format.toLowerCase() === "json")) {
         exportResults(format.toLowerCase());
       } else {

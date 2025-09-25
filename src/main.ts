@@ -47,9 +47,7 @@ async function main() {
       });
 
       // Start real-time updates and save to database
-      await collector.startRealtimeUpdates(tickers, async (data) => {
-        await db.saveKLineData(data);
-      });
+      await collector.startRealtimeUpdates(tickers);
     } else {
       await db.close();
       await collector.cleanup();

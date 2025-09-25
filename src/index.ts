@@ -101,8 +101,34 @@ const app = new Elysia()
       }
 
       const stream = await query.getScannerDataStream();
-      
-      return new Response(stream, {
+      let result = '';
+
+      if (stream instanceof ReadableStream) {
+        // Web ReadableStream
+        const reader = stream.getReader();
+        let done = false;
+        while (!done) {
+          const { value, done: streamDone } = await reader.read();
+          if (value) {
+            result += new TextDecoder().decode(value);
+          }
+          done = streamDone;
+        }
+      } else if (typeof stream.on === 'function') {
+        // Node.js Readable stream
+        result = await new Promise<string>((resolve, reject) => {
+          let data = '';
+          stream.on('data', (chunk: Buffer | string) => {
+            data += chunk.toString();
+          });
+          stream.on('end', () => resolve(data));
+          stream.on('error', reject);
+        });
+      } else {
+        throw new Error('Unknown stream type returned by getScannerDataStream');
+      }
+
+      return new Response(result, {
         headers: {
           'Content-Type': 'application/json',
         },
